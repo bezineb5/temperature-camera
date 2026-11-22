@@ -1,2 +1,2 @@
 # Development dependencies (not needed on the Pi)
-pytest>=8.0
+pytest==9.2.0
