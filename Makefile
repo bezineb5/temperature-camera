@@ -34,8 +34,8 @@ service-status: ## Show service status on the Pi
 service-logs: ## Follow service logs on the Pi
 	ssh $(RPI_USER)@$(RPI_HOST) "sudo journalctl -u TemperatureCamera.service -f"
 
-service-update: ## Deploy latest code and restart the service
-	$(MAKE) deploy service-restart
+service-update: ## Deploy latest code, reinstall unit if changed, restart
+	$(MAKE) deploy service-install service-restart
 
 test: ## Run unit tests locally (no hardware needed)
 	python3 -m pytest tests/ -q

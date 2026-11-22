@@ -1,0 +1,19 @@
+2026-11-22 09:18:35,512 - __main__ - INFO - Starting TemperatureCamera server
+2026-11-22 09:18:35,512 - __main__ - INFO - Python version: 3.15.2 (main, Oct 25 2026, 16:57:51) [Clang 21.0.0 (clang-2100.3.34.2)]
+2026-11-22 09:18:35,512 - __main__ - INFO - Working directory: /Users/benjamin/Documents/Development/Projects/TemperatureCamera
+2026-11-22 09:18:35,512 - __main__ - INFO - Demo mode: streaming a synthetic thermal field
+2026-11-22 09:18:35,522 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5017
+ * Running on http://192.168.178.160:5017
+2026-11-22 09:18:35,522 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-11-22 09:18:59,761 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 09:18:59] "GET / HTTP/1.1" 200 -
+2026-11-22 09:18:59,764 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 09:18:59] "GET /stream-contract.html HTTP/1.1" 200 -
+2026-11-22 09:18:59,765 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 09:18:59] "GET /api/status HTTP/1.1" 200 -
+2026-11-22 09:18:59,789 - __main__ - INFO - WebSocket client connected (1 total)
+2026-11-22 09:19:01,006 - __main__ - INFO - Settings updated: SensorSettings(emissivity=0.9, reflectedC=22.5)
+2026-11-22 09:19:01,180 - __main__ - WARNING - Rejected settings update: emissivity must be in (0, 1], got 5.0
+2026-11-22 09:19:01,356 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 09:19:01] "GET /api/status HTTP/1.1" 200 -
+2026-11-22 09:19:01,357 - __main__ - INFO - WebSocket client disconnected (0 total)
+2026-11-22 09:19:01,357 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 09:19:01] "GET /ws/thermal HTTP/1.1" 200 -
+2026-11-22 09:19:01,867 - __main__ - INFO - Received shutdown signal, stopping threads...

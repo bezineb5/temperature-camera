@@ -20,7 +20,6 @@ import threading
 import time
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass, field, replace
-from datetime import datetime
 from pathlib import Path
 from types import FrameType
 from typing import Any, Optional
@@ -534,26 +533,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    log_handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
-    try:
-        log_dir = Path("logs")
-        log_dir.mkdir(exist_ok=True)
-        file_handler = logging.FileHandler(
-            log_dir
-            / f"temperature_camera_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
-        )
-        file_handler.setFormatter(
-            logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-        )
-        log_handlers.append(file_handler)
-    except Exception as e:
-        print(f"Warning: Could not set up file logging: {e}")
-
+    # stdout/stderr are captured by the journal (StandardOutput=journal in
+    # TemperatureCamera.service); `make service-logs` shows them via journalctl
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
-        handlers=log_handlers,
+        handlers=[logging.StreamHandler(sys.stdout)],
     )
 
     logger.info("Starting TemperatureCamera server")

@@ -8,22 +8,21 @@ Type=simple
 User=pi
 WorkingDirectory=/home/pi/TemperatureCamera
 ExecStart=/home/pi/TemperatureCamera/venv/bin/python /home/pi/TemperatureCamera/main.py
-# Make sure the logs dir exists before the read-only sandbox is applied
-ExecStartPre=+/usr/bin/mkdir -p /home/pi/TemperatureCamera/logs
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
 
 # Logging goes straight to the journal (see `make service-logs`)
 StandardOutput=journal
 StandardError=journal
 
-# Hardening: system read-only except the app's logs dir; /dev/i2c-1 stays reachable
+# Hardening: fully read-only system, nothing is written at runtime (logs go
+# to the journal via StandardOutput=journal). /dev/i2c-1 stays reachable.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=read-only
 ProtectSystem=strict
-ReadWritePaths=/home/pi/TemperatureCamera/logs
 
 # Performance settings
 Nice=0

@@ -1,0 +1,26 @@
+2026-11-22 08:57:38,847 - __main__ - INFO - Starting TemperatureCamera server
+2026-11-22 08:57:38,847 - __main__ - INFO - Python version: 3.15.2 (main, Oct 25 2026, 16:57:51) [Clang 21.0.0 (clang-2100.3.34.2)]
+2026-11-22 08:57:38,847 - __main__ - INFO - Working directory: /Users/benjamin/Documents/Development/Projects/TemperatureCamera
+2026-11-22 08:57:38,847 - __main__ - INFO - Demo mode: streaming a synthetic thermal field
+2026-11-22 08:57:41,242 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5017
+ * Running on http://192.168.178.160:5017
+2026-11-22 08:57:41,242 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2026-11-22 08:59:06,985 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 08:59:06] "GET / HTTP/1.1" 200 -
+2026-11-22 08:59:06,987 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 08:59:06] "GET /stream-contract.html HTTP/1.1" 200 -
+2026-11-22 08:59:06,988 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 08:59:06] "GET /api/status HTTP/1.1" 200 -
+2026-11-22 08:59:07,023 - __main__ - INFO - WebSocket client connected (1 total)
+2026-11-22 08:59:08,288 - __main__ - INFO - Settings updated: {'emissivity': 0.9, 'reflectedC': 22.5}
+2026-11-22 08:59:08,464 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 08:59:08] "GET /api/status HTTP/1.1" 200 -
+2026-11-22 08:59:08,466 - __main__ - INFO - WebSocket client disconnected (0 total)
+2026-11-22 08:59:08,466 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 08:59:08] "GET /ws/thermal HTTP/1.1" 200 -
+2026-11-22 08:59:27,912 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 08:59:27] "GET / HTTP/1.1" 200 -
+2026-11-22 08:59:27,913 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 08:59:27] "GET /stream-contract.html HTTP/1.1" 200 -
+2026-11-22 08:59:27,913 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 08:59:27] "GET /api/status HTTP/1.1" 200 -
+2026-11-22 08:59:27,935 - __main__ - INFO - WebSocket client connected (1 total)
+2026-11-22 08:59:29,207 - __main__ - INFO - Settings updated: {'emissivity': 0.9, 'reflectedC': 22.5}
+2026-11-22 08:59:29,384 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 08:59:29] "GET /api/status HTTP/1.1" 200 -
+2026-11-22 08:59:29,385 - __main__ - INFO - WebSocket client disconnected (0 total)
+2026-11-22 08:59:29,386 - werkzeug - INFO - 127.0.0.1 - - [22/Nov/2026 08:59:29] "GET /ws/thermal HTTP/1.1" 200 -
+2026-11-22 08:59:37,701 - __main__ - INFO - Received shutdown signal, stopping threads...
