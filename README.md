@@ -42,7 +42,7 @@ sudo raspi-config
 # Navigate to: Interface Options -> I2C -> Enable
 
 # Increase I2C baud rate for better performance (optional)
-echo "dtparam=i2c_arm_baudrate=1000000" | sudo tee -a /boot/config.txt
+echo "dtparam=i2c_arm_baudrate=1000000" | sudo tee -a /boot/firmware/config.txt
 
 # Reboot
 sudo reboot
@@ -77,15 +77,15 @@ python3 main.py --demo
 
 ```bash
 # Install as systemd service
-make install-service
+make service-install
 
 # Service management commands
-make start      # Start the service
-make stop       # Stop the service
-make restart    # Restart the service
-make status     # Check service status
-make logs       # View logs
-make update     # Update to latest version
+make service-start      # Start the service
+make service-stop       # Stop the service
+make service-restart    # Restart the service
+make service-status     # Check service status
+make service-logs       # View logs
+make service-update     # Deploy latest code and restart
 ```
 
 ## Usage

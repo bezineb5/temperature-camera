@@ -1,20 +1,29 @@
 [Unit]
 Description=Temperature Camera Streaming Server
-After=network.target
+Wants=network-online.target
+After=network.target network-online.target
 
 [Service]
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/TemperatureCamera
 ExecStart=/home/pi/TemperatureCamera/venv/bin/python /home/pi/TemperatureCamera/main.py
+# Make sure the logs dir exists before the read-only sandbox is applied
+ExecStartPre=+/usr/bin/mkdir -p /home/pi/TemperatureCamera/logs
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
 
-# Logging configuration
-StandardOutput=syslog
-StandardError=syslog
-SyslogIdentifier=temperature-camera
+# Logging goes straight to the journal (see `make service-logs`)
+StandardOutput=journal
+StandardError=journal
+
+# Hardening: system read-only except the app's logs dir; /dev/i2c-1 stays reachable
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=strict
+ReadWritePaths=/home/pi/TemperatureCamera/logs
 
 # Performance settings
 Nice=0
