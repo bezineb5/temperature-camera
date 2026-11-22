@@ -1,10 +1,38 @@
 # Temperature Camera Streaming Server
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](requirements.txt)
+
 A Flask-based thermal camera server. The Raspberry Pi sends raw MLX90640 temperature
 frames to the browser over a binary WebSocket (stream contract v1); the browser does all
 rendering and recording.
 
 ![Live view on desktop](docs/thermal_camera_desktop.png)
+
+## How it works
+
+`MLX90640 (32×24 °C) → main.py encodes v1 binary frames → ws://<pi>:5000/ws/thermal → browser canvas`
+
+Calibration stays on the Pi; palette, temperature range, °C/°F, spot markers,
+snapshots and clips are all client-side. The wire format is specified in the
+[stream contract](templates/stream-contract.html), also served live at
+`/stream-contract.html`.
+
+## Contents
+
+- [Features](#features)
+- [Hardware Requirements](#hardware-requirements)
+- [Software Requirements](#software-requirements)
+- [Quick Start](#quick-start-no-hardware-needed)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Development](#development)
+- [File Structure](#file-structure)
+- [Troubleshooting](#troubleshooting)
+- [Screenshots](#screenshots)
+- [License](#license)
+- [Support](#support)
 
 ## Features
 
@@ -156,6 +184,8 @@ python3 main.py --demo     # run the server without a sensor
 - `tests/`: pytest unit tests
 - `Makefile`: Deployment and venv setup
 - `TemperatureCamera.service`: Systemd service configuration
+- `docs/`: Screenshots
+- `LICENSE`: MIT
 
 ## Troubleshooting
 
@@ -187,13 +217,21 @@ python3 main.py --fps 6
 # Ensure proper cooling for Raspberry Pi
 ```
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/thermal_camera_desktop.png" width="68%" alt="Desktop live view">
+  <img src="docs/thermal_camera.png" width="28%" alt="Mobile live view">
+</p>
+
 ## License
 
-MIT License - See LICENSE for details.
+MIT License — see [LICENSE](LICENSE).
 
 ## Support
 
-For issues and feature requests, please open a GitHub issue.
+For issues and feature requests, please open a GitHub issue. PRs welcome —
+run `make test` first and keep the UI faithful to `designs/`.
 
 ## Acknowledgements
 
