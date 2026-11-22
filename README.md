@@ -83,10 +83,11 @@ sudo apt-get install -y python3-pip python3-venv python3-dev libgpiod-dev
 sudo raspi-config
 # Navigate to: Interface Options -> I2C -> Enable
 
-# Optional: raise the I2C baud rate. 1 MHz is the MLX90640 maximum, but marginal
-# wiring often fails at that speed — if reads fail with "Too many retries",
-# remove this line and reboot (see Troubleshooting)
-echo "dtparam=i2c_arm_baudrate=1000000" | sudo tee -a /boot/firmware/config.txt
+# Raise the I2C baud rate: at the 100 kHz default, reading the 768-pixel frame
+# alone takes ~125 ms (≈1 fps). 400 kHz gives ~12 fps and is reliable with
+# decent wiring. 1 MHz is the MLX90640 maximum but marginal wiring fails there
+# with "Too many retries" — if that happens, come back to 400 kHz
+echo "dtparam=i2c_arm_baudrate=400000" | sudo tee -a /boot/firmware/config.txt
 
 # Reboot
 sudo reboot
@@ -170,6 +171,8 @@ Command-line options for `main.py`:
 - `--demo`: stream a synthetic thermal field instead of the sensor
 - `--host` / `--port`: bind address (default `0.0.0.0:5000`)
 - `--fps`: stream rate in frames per second (default: 12)
+- `--flip-h` / `--flip-v`: mirror the frame before streaming, if the sensor is
+  mounted mirrored or upside down (top-left origin is the wire contract)
 
 Stream constants (protocol version, header layout, 32×24 grid, 1,568-byte
 frames) live at the top of `main.py` and mirror `/stream-contract.html`.
@@ -218,12 +221,17 @@ sudo i2cdetect -y 1
 
 ### Stream Issues
 ```bash
-# Check server health and stream stats
+# Check server health and stream stats (fps, fault flag, client count)
 curl http://localhost:5000/api/status
-
-# Lower the stream rate if the network or client can't keep up
-python3 main.py --fps 6
 ```
+
+- **Stream is slow (~1 fps)**: the I2C baud rate is the usual cause — at the
+  100 kHz default the frame readout alone takes ~125 ms. Set
+  `dtparam=i2c_arm_baudrate=400000` (see System Setup) and reboot. The sensor
+  itself runs at 32 Hz. Lower the stream with `--fps 6` if the client can't
+  keep up (frames are dropped, never queued).
+- **Image is mirrored or upside down**: add `--flip-h` and/or `--flip-v` to
+  the server (in the systemd unit's `ExecStart`), then `make service-update`.
 
 ### Performance Issues
 ```bash

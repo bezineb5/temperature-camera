@@ -107,6 +107,24 @@ def encode_frame(
     return header + struct.pack(f"<{len(pixels)}h", *pixels)
 
 
+def apply_orientation(
+    temps: list[float], cols: int, rows: int, flip_h: bool, flip_v: bool
+) -> list[float]:
+    """Return the frame with optional mirroring applied.
+
+    The wire contract is row-major with origin at the top-left, but physical
+    mounting can mirror the sensor — the Pi corrects orientation before encoding.
+    """
+    if not flip_h and not flip_v:
+        return temps
+    grid = [temps[r * cols : (r + 1) * cols] for r in range(rows)]
+    if flip_v:
+        grid.reverse()
+    if flip_h:
+        grid = [row[::-1] for row in grid]
+    return [v for row in grid for v in row]
+
+
 # --- Frame sources -----------------------------------------------------------
 
 
@@ -199,7 +217,7 @@ class MLX90640Source(FrameSource):
         64: "REFRESH_64_HZ",
     }
 
-    def __init__(self, target_hz: float = 16.0) -> None:
+    def __init__(self, target_hz: float = 32.0) -> None:
         import adafruit_mlx90640
         import board
 
@@ -377,7 +395,13 @@ stats = StreamStats()
 stats_lock = threading.Lock()
 
 
-def stream_worker(src: FrameSource, stop_event: threading.Event, fps: float) -> None:
+def stream_worker(
+    src: FrameSource,
+    stop_event: threading.Event,
+    fps: float,
+    flip_h: bool = False,
+    flip_v: bool = False,
+) -> None:
     """Read the sensor, encode v1 frames, broadcast them at `fps`."""
     seq = 0
     started = time.monotonic()
@@ -394,6 +418,7 @@ def stream_worker(src: FrameSource, stop_event: threading.Event, fps: float) -> 
             logger.warning(f"Sensor read failed, sending fault frame: {e}")
             fault = True
             temps = [math.nan] * (src.cols * src.rows)
+        temps = apply_orientation(temps, src.cols, src.rows, flip_h, flip_v)
 
         with source_lock:
             settings: SensorSettings = replace(src.settings)  # consistent snapshot
@@ -531,6 +556,16 @@ def main() -> None:
         default=DEFAULT_FPS,
         help=f"Stream rate in frames per second (default {DEFAULT_FPS})",
     )
+    parser.add_argument(
+        "--flip-h",
+        action="store_true",
+        help="Mirror frames left-right before streaming (sensor mounted mirrored)",
+    )
+    parser.add_argument(
+        "--flip-v",
+        action="store_true",
+        help="Flip frames top-bottom before streaming",
+    )
     args = parser.parse_args()
 
     # stdout/stderr are captured by the journal (StandardOutput=journal in
@@ -570,7 +605,9 @@ def main() -> None:
             sys.exit(1)
 
     worker = threading.Thread(
-        target=stream_worker, args=(source, stop_event, args.fps), daemon=True
+        target=stream_worker,
+        args=(source, stop_event, args.fps, args.flip_h, args.flip_v),
+        daemon=True,
     )
     worker.start()
 

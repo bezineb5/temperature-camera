@@ -21,6 +21,7 @@ from main import (
     SettingsUpdate,
     StatusMessage,
     StreamHub,
+    apply_orientation,
     apply_settings,
     encode_frame,
     parse_control,
@@ -150,6 +151,17 @@ def test_frame_source_carries_geometry():
     assert DemoSource().frame_bytes == 1568
     assert DemoSource().name == "demo"
     assert MLX90640Source.name == "mlx90640"
+
+
+# --- apply_orientation ------------------------------------------------------------
+
+
+def test_apply_orientation():
+    temps = [1, 2, 3, 4, 5, 6]  # 3 cols x 2 rows: [1,2,3] / [4,5,6]
+    assert apply_orientation(temps, 3, 2, False, False) == temps
+    assert apply_orientation(temps, 3, 2, True, False) == [3, 2, 1, 6, 5, 4]
+    assert apply_orientation(temps, 3, 2, False, True) == [4, 5, 6, 1, 2, 3]
+    assert apply_orientation(temps, 3, 2, True, True) == [6, 5, 4, 3, 2, 1]
 
 
 # --- SensorSettings -------------------------------------------------------------
