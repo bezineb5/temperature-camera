@@ -23,7 +23,7 @@ from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime
 from pathlib import Path
 from types import FrameType
-from typing import Any, Optional, Protocol
+from typing import Any, Optional
 
 from flask import Flask, Response, jsonify, render_template
 from flask_sock import Sock
@@ -39,11 +39,9 @@ sock = Sock(app)
 # ambientC, frameMinC, frameMaxC, sensorMs, emissivity, reserved
 HEADER = struct.Struct("<BBHHHIfffIHH")  # 32 bytes, little-endian, no padding
 PROTO_VERSION = 1
-COLS, ROWS = 32, 24  # MLX90640
 INVALID_PIXEL = -32768  # int16 marker for a pixel with no valid reading
 FLAG_FLOAT32 = 1
 FLAG_FAULT = 2
-FRAME_BYTES = HEADER.size + COLS * ROWS * 2  # 1,568 bytes
 
 DEFAULT_FPS = 12  # default stream rate (contract §12)
 
@@ -68,9 +66,16 @@ def encode_frame(
     ambient_c: float,
     emissivity: float,
     temps: Iterable[float],
+    cols: int,
+    rows: int,
     fault: bool = False,
 ) -> bytes:
-    """Encode one v1 frame: 32-byte header + int16 hundredths-of-°C payload."""
+    """Encode one v1 frame: 32-byte header + cols×rows int16 hundredths-of-°C payload."""
+    temps = list(temps)
+    if len(temps) != cols * rows:
+        raise ValueError(
+            f"expected {cols * rows} pixels for a {cols}x{rows} grid, got {len(temps)}"
+        )
     pixels: list[int] = []
     mn, mx = math.inf, -math.inf
     for v in temps:
@@ -90,8 +95,8 @@ def encode_frame(
         PROTO_VERSION,
         FLAG_FAULT if fault else 0,
         HEADER.size,
-        COLS,
-        ROWS,
+        cols,
+        rows,
         seq & 0xFFFFFFFF,
         float(ambient_c),
         mn,
@@ -106,23 +111,37 @@ def encode_frame(
 # --- Frame sources -----------------------------------------------------------
 
 
-class FrameSource(Protocol):
-    """Anything that yields 32x24 °C frames and carries physical-model settings."""
+class FrameSource:
+    """Interface for frame sources: each implementation declares its own
+    name, cols/rows grid geometry and settings, and implements read()."""
 
     name: str
+    cols: int
+    rows: int
     settings: SensorSettings
 
-    def read(self) -> list[float]: ...
+    def __init__(self) -> None:
+        self.settings = SensorSettings()
+
+    @property
+    def frame_bytes(self) -> int:
+        """Encoded v1 frame size: 32-byte header + cols×rows int16 payload."""
+        return HEADER.size + self.cols * self.rows * 2
+
+    def read(self) -> list[float]:
+        raise NotImplementedError
 
 
-class DemoSource:
-    """Synthetic 32x24 field for development off the Pi. Yields °C like the sensor."""
+class DemoSource(FrameSource):
+    """Synthetic field for development off the Pi. Yields °C like the sensor."""
 
     name = "demo"
+    cols = 32
+    rows = 24
 
     def __init__(self) -> None:
+        super().__init__()
         self._t0: float = time.monotonic()
-        self.settings: SensorSettings = SensorSettings()
 
     @staticmethod
     def _blob(
@@ -141,10 +160,10 @@ class DemoSource:
         t = time.monotonic() - self._t0
         seed = int(t * DEFAULT_FPS) % 89
         temps: list[float] = []
-        for y in range(ROWS):
-            ny = (y + 0.5) / ROWS
-            for x in range(COLS):
-                nx = (x + 0.5) / COLS
+        for y in range(self.rows):
+            ny = (y + 0.5) / self.rows
+            for x in range(self.cols):
+                nx = (x + 0.5) / self.cols
                 v = 20.2 + (ny - 0.5) * 2.0
                 v += self._blob(nx, ny, 0.30, 0.60, 0.30, 0.34, 6.4)
                 v += self._blob(nx, ny, 0.45, 0.76, 0.17, 0.19, 5.2)
@@ -163,10 +182,12 @@ class DemoSource:
         return temps
 
 
-class MLX90640Source:
+class MLX90640Source(FrameSource):
     """Real MLX90640 sensor on a Raspberry Pi. getFrame returns calibrated °C."""
 
     name = "mlx90640"
+    cols = 32  # MLX90640 grid
+    rows = 24
 
     RATES: dict[float, str] = {
         0.5: "REFRESH_0_5_HZ",
@@ -183,13 +204,13 @@ class MLX90640Source:
         import adafruit_mlx90640
         import board
 
+        super().__init__()
         self._mlx: Any = adafruit_mlx90640.MLX90640(board.I2C())
         nearest: float = min(self.RATES, key=lambda r: abs(r - target_hz))
         self._mlx.refresh_rate = getattr(
             adafruit_mlx90640.RefreshRate, self.RATES[nearest]
         )
         logger.info(f"MLX90640 refresh rate set to {nearest} Hz")
-        self.settings = SensorSettings()
         self._apply_emissivity(self.settings.emissivity)
 
     def _apply_emissivity(self, value: float) -> None:
@@ -199,7 +220,7 @@ class MLX90640Source:
             logger.warning(f"Could not set emissivity on sensor: {e}")
 
     def read(self) -> list[float]:
-        frame: list[float] = [0.0] * (COLS * ROWS)
+        frame: list[float] = [0.0] * (self.cols * self.rows)
         self._mlx.getFrame(frame)  # raises ValueError/RuntimeError on bad reads
         return frame
 
@@ -373,7 +394,7 @@ def stream_worker(src: FrameSource, stop_event: threading.Event, fps: float) -> 
         except Exception as e:
             logger.warning(f"Sensor read failed, sending fault frame: {e}")
             fault = True
-            temps = [math.nan] * (COLS * ROWS)
+            temps = [math.nan] * (src.cols * src.rows)
 
         with source_lock:
             settings: SensorSettings = replace(src.settings)  # consistent snapshot
@@ -387,6 +408,8 @@ def stream_worker(src: FrameSource, stop_event: threading.Event, fps: float) -> 
                 settings.reflectedC,
                 settings.emissivity,
                 temps,
+                src.cols,
+                src.rows,
                 fault=fault,
             )
         )
@@ -430,7 +453,7 @@ class StatusPayload:
     seq: int
     fps: float
     fault: bool
-    frameBytes: int
+    frameBytes: int | None
     uptimeS: float
     settings: dict[str, float] | None
 
@@ -448,7 +471,7 @@ def api_status() -> Response:
             seq=snap.seq,
             fps=round(snap.fps, 1),
             fault=snap.fault,
-            frameBytes=FRAME_BYTES,
+            frameBytes=source.frame_bytes if source is not None else None,
             uptimeS=round(time.time() - snap.started, 1),
             settings=asdict(source.settings) if source is not None else None,
         )

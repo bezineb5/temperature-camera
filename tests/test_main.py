@@ -11,13 +11,11 @@ import pytest
 
 import main
 from main import (
-    COLS,
     FLAG_FAULT,
-    FRAME_BYTES,
     HEADER,
     INVALID_PIXEL,
-    ROWS,
     DemoSource,
+    MLX90640Source,
     Ping,
     SensorSettings,
     SettingsUpdate,
@@ -29,12 +27,28 @@ from main import (
     stream_worker,
 )
 
+# geometry comes from the source interface, not module constants
+_DEMO = DemoSource()
+COLS, ROWS = _DEMO.cols, _DEMO.rows
+FRAME_BYTES = _DEMO.frame_bytes
+
 
 def decode_frame(data: bytes) -> dict:
     """Decode a v1 frame per the stream contract (mirrors the client decoder)."""
-    version, flags, header_bytes, cols, rows, seq, ambient, mn, mx, sensor_ms, emis, _ = (
-        HEADER.unpack_from(data)
-    )
+    (
+        version,
+        flags,
+        header_bytes,
+        cols,
+        rows,
+        seq,
+        ambient,
+        mn,
+        mx,
+        sensor_ms,
+        emis,
+        _,
+    ) = HEADER.unpack_from(data)
     pixels = struct.unpack_from(f"<{cols * rows}h", data, header_bytes)
     return {
         "version": version,
@@ -56,7 +70,7 @@ def decode_frame(data: bytes) -> dict:
 
 
 def test_encode_frame_layout_and_header():
-    data = encode_frame(7, 1234, 21.4, 0.95, [20.0] * (COLS * ROWS))
+    data = encode_frame(7, 1234, 21.4, 0.95, [20.0] * (COLS * ROWS), COLS, ROWS)
     assert len(data) == FRAME_BYTES == 1568
     f = decode_frame(data)
     assert f["version"] == 1
@@ -74,7 +88,7 @@ def test_encode_frame_payload_is_hundredths_int16():
     temps = [20.0] * (COLS * ROWS)
     temps[0] = 21.43
     temps[1] = -5.67
-    data = encode_frame(1, 0, 21.0, 0.95, temps)
+    data = encode_frame(1, 0, 21.0, 0.95, temps, COLS, ROWS)
     f = decode_frame(data)
     assert f["pixels"][0] == 2143
     assert f["pixels"][1] == -567
@@ -87,7 +101,7 @@ def test_encode_frame_invalid_pixels_excluded_from_min_max():
     temps[0] = math.nan
     temps[1] = None
     temps[2] = 100.0  # hot outlier must not leak into min
-    data = encode_frame(1, 0, 21.0, 0.95, temps)
+    data = encode_frame(1, 0, 21.0, 0.95, temps, COLS, ROWS)
     f = decode_frame(data)
     assert f["pixels"][0] == INVALID_PIXEL == -32768
     assert f["pixels"][1] == INVALID_PIXEL
@@ -96,7 +110,9 @@ def test_encode_frame_invalid_pixels_excluded_from_min_max():
 
 
 def test_encode_frame_clamps_to_int16_range():
-    data = encode_frame(1, 0, 21.0, 0.95, [400.0, -400.0] + [20.0] * (COLS * ROWS - 2))
+    data = encode_frame(
+        1, 0, 21.0, 0.95, [400.0, -400.0] + [20.0] * (COLS * ROWS - 2), COLS, ROWS
+    )
     f = decode_frame(data)
     assert f["pixels"][0] == 32767
     assert f["pixels"][1] == -32767
@@ -105,20 +121,35 @@ def test_encode_frame_clamps_to_int16_range():
 
 
 def test_encode_frame_sequence_wraps_at_2_to_32():
-    data = encode_frame(2**32 + 5, 0, 21.0, 0.95, [20.0] * (COLS * ROWS))
+    data = encode_frame(2**32 + 5, 0, 21.0, 0.95, [20.0] * (COLS * ROWS), COLS, ROWS)
     assert decode_frame(data)["seq"] == 5
 
 
 def test_encode_frame_all_invalid_sets_fault_flag():
-    data = encode_frame(1, 0, 21.0, 0.95, [math.nan] * (COLS * ROWS))
+    data = encode_frame(1, 0, 21.0, 0.95, [math.nan] * (COLS * ROWS), COLS, ROWS)
     f = decode_frame(data)
     assert f["flags"] & FLAG_FAULT
     assert f["minC"] == f["maxC"] == 0.0
 
 
 def test_encode_frame_explicit_fault_flag():
-    data = encode_frame(1, 0, 21.0, 0.95, [20.0] * (COLS * ROWS), fault=True)
+    data = encode_frame(
+        1, 0, 21.0, 0.95, [20.0] * (COLS * ROWS), COLS, ROWS, fault=True
+    )
     assert decode_frame(data)["flags"] & FLAG_FAULT
+
+
+def test_encode_frame_rejects_wrong_pixel_count():
+    with pytest.raises(ValueError, match="pixels"):
+        encode_frame(1, 0, 21.0, 0.95, [20.0] * 10, COLS, ROWS)
+
+
+def test_frame_source_carries_geometry():
+    assert (DemoSource.cols, DemoSource.rows) == (32, 24)
+    assert (MLX90640Source.cols, MLX90640Source.rows) == (32, 24)
+    assert DemoSource().frame_bytes == 1568
+    assert DemoSource().name == "demo"
+    assert MLX90640Source.name == "mlx90640"
 
 
 # --- SensorSettings -------------------------------------------------------------
@@ -146,7 +177,9 @@ def test_parse_ping():
 
 
 def test_parse_settings():
-    msg = parse_control(json.dumps({"type": "settings", "emissivity": 0.9, "reflectedC": 22}))
+    msg = parse_control(
+        json.dumps({"type": "settings", "emissivity": 0.9, "reflectedC": 22})
+    )
     assert isinstance(msg, SettingsUpdate)
     assert msg.emissivity == 0.9
     assert msg.reflectedC == 22.0
@@ -241,9 +274,8 @@ def test_demo_source_read_shape():
     assert all(math.isfinite(v) for v in temps)
 
 
-class FailingSource:
+class FailingSource(DemoSource):
     name = "failing"
-    settings = SensorSettings()
 
     def read(self) -> list[float]:
         raise RuntimeError("i2c timeout")
@@ -328,7 +360,7 @@ def test_api_status_without_source(client):
     r = client.get("/api/status")
     assert r.status_code == 200
     data = r.get_json()
-    assert data["frameBytes"] == FRAME_BYTES
+    assert data["frameBytes"] is None  # no source attached
     assert data["source"] is None
     assert data["settings"] is None
 
@@ -338,4 +370,5 @@ def test_api_status_with_demo_source(client, monkeypatch):
     data = client.get("/api/status").get_json()
     assert data["source"] == "demo"
     assert data["demo"] is True
+    assert data["frameBytes"] == FRAME_BYTES == 1568
     assert data["settings"] == {"emissivity": 0.95, "reflectedC": 21.0}
