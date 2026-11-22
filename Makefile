@@ -10,4 +10,7 @@ deploy:
 setup-venv:
 	ssh $(RPI_USER)@$(RPI_HOST) "cd $(RPI_DIR) && python3 -m venv venv && venv/bin/pip install -r requirements.txt -r requirements-pi.txt"
 
-.PHONY: deploy setup-venv
+test:
+	python3 -m pytest tests/ -q
+
+.PHONY: deploy setup-venv test

@@ -122,6 +122,14 @@ Command-line options for `main.py`:
 Stream constants (protocol version, header layout, 32×24 grid, 1,568-byte
 frames) live at the top of `main.py` and mirror `/stream-contract.html`.
 
+## Development
+
+```bash
+pip install -r requirements-dev.txt
+make test                  # unit tests (no hardware needed)
+python3 main.py --demo     # run the server without a sensor
+```
+
 ## File Structure
 
 - `main.py`: Flask server, v1 frame encoder, WebSocket hub, sensor/demo sources
@@ -130,6 +138,8 @@ frames) live at the top of `main.py` and mirror `/stream-contract.html`.
 - `designs/`: Source design export the UI was built from
 - `requirements.txt`: Python dependencies (any machine)
 - `requirements-pi.txt`: Sensor library (Raspberry Pi only)
+- `requirements-dev.txt`: Test runner (development machines)
+- `tests/`: pytest unit tests
 - `Makefile`: Deployment and venv setup
 - `TemperatureCamera.service`: Systemd service configuration
 
