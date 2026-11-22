@@ -1,5 +1,6 @@
 # Temperature Camera Streaming Server
 
+[![Tests](https://github.com/bezineb5/temperature-camera/actions/workflows/tests.yml/badge.svg)](https://github.com/bezineb5/temperature-camera/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](requirements.txt)
 
