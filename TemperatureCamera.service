@@ -1,0 +1,25 @@
+[Unit]
+Description=Temperature Camera Streaming Server
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/TemperatureCamera
+ExecStart=/home/pi/TemperatureCamera/venv/bin/python /home/pi/TemperatureCamera/main.py --min-temp 23 --max-temp 40
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+# Logging configuration
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=temperature-camera
+
+# Performance settings
+Nice=0
+CPUQuota=80%
+MemoryLimit=500M
+
+[Install]
+WantedBy=multi-user.target

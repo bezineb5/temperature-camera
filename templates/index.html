@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thermal Camera</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #fff;
+        }
+
+        .controls {
+            background: #2a2a2a;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        label {
+            font-weight: 500;
+            min-width: 120px;
+        }
+
+        select {
+            flex: 1;
+            padding: 10px;
+            background: #3a3a3a;
+            color: #e0e0e0;
+            border: 1px solid #4a4a4a;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        select:hover {
+            background: #4a4a4a;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #5a9;
+        }
+
+        .status {
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status.success {
+            background: #2a5a2a;
+            color: #8f8;
+            display: block;
+        }
+
+        .status.error {
+            background: #5a2a2a;
+            color: #f88;
+            display: block;
+        }
+
+        .status.loading {
+            background: #3a3a5a;
+            color: #aaf;
+            display: block;
+        }
+
+        .video-container {
+            background: #000;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        #video-stream {
+            max-width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .error-message {
+            color: #f88;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Thermal Camera</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="colormap-select">Colormap:</label>
+                <select id="colormap-select">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="status" id="status"></div>
+        </div>
+
+        <div class="video-container">
+            <img id="video-stream" src="/video_feed" alt="Thermal Camera Stream">
+        </div>
+    </div>
+
+    <script>
+        const colormapSelect = document.getElementById('colormap-select');
+        const statusDiv = document.getElementById('status');
+        const videoStream = document.getElementById('video-stream');
+
+        // Show status message
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            if (type !== 'loading') {
+                setTimeout(() => {
+                    statusDiv.className = 'status';
+                }, 3000);
+            }
+        }
+
+        // Load available colormaps and current selection
+        async function loadColormaps() {
+            try {
+                const response = await fetch('/api/colormap');
+                if (!response.ok) {
+                    throw new Error('Failed to load colormaps');
+                }
+                const data = await response.json();
+                
+                // Populate select dropdown
+                colormapSelect.innerHTML = '';
+                data.available.forEach(colormap => {
+                    const option = document.createElement('option');
+                    option.value = colormap;
+                    option.textContent = colormap.charAt(0).toUpperCase() + colormap.slice(1);
+                    if (colormap === data.current) {
+                        option.selected = true;
+                    }
+                    colormapSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading colormaps:', error);
+                showStatus('Error loading colormaps: ' + error.message, 'error');
+                colormapSelect.innerHTML = '<option value="">Error loading colormaps</option>';
+            }
+        }
+
+        // Change colormap
+        async function changeColormap(colormap) {
+            if (!colormap) return;
+            
+            try {
+                const response = await fetch('/api/colormap', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ colormap: colormap }),
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to change colormap');
+                }
+
+                // Force video stream refresh by adding timestamp
+                const timestamp = new Date().getTime();
+                videoStream.src = `/video_feed?t=${timestamp}`;
+            } catch (error) {
+                console.error('Error changing colormap:', error);
+                showStatus('Error: ' + error.message, 'error');
+            }
+        }
+
+        // Handle colormap selection change
+        colormapSelect.addEventListener('change', (e) => {
+            changeColormap(e.target.value);
+        });
+
+        // Handle video stream errors
+        videoStream.addEventListener('error', () => {
+            videoStream.alt = 'Error loading video stream';
+            showStatus('Error loading video stream', 'error');
+        });
+
+        // Load colormaps on page load
+        loadColormaps();
+    </script>
+</body>
+</html>
