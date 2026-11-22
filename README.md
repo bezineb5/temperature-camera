@@ -2,7 +2,7 @@
 
 [![Tests](https://github.com/bezineb5/temperature-camera/actions/workflows/tests.yml/badge.svg)](https://github.com/bezineb5/temperature-camera/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](requirements.txt)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](requirements.txt)
 
 A Flask-based thermal camera server. The Raspberry Pi sends raw MLX90640 temperature
 frames to the browser over a binary WebSocket (stream contract v1); the browser does all
@@ -53,7 +53,7 @@ snapshots and clips are all client-side. The wire format is specified in the
 
 ## Software Requirements
 
-- Python 3.9+ (the floor is set by Flask 3.1; Raspberry Pi OS Bookworm ships 3.11)
+- Python 3.11+ (Raspberry Pi OS Bookworm ships 3.11, Trixie 3.13; older versions are EOL)
 - Raspberry Pi OS, 32-bit or 64-bit — the server only streams ~19 kB/s, either works
 - I2C enabled
 
