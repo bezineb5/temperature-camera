@@ -8,7 +8,7 @@ Type=simple
 User=pi
 WorkingDirectory=/home/pi/TemperatureCamera
 # If the image is mirrored/upside down, add --flip-h / --flip-v here, then `make service-update`
-ExecStart=/home/pi/TemperatureCamera/venv/bin/python /home/pi/TemperatureCamera/main.py
+ExecStart=/home/pi/TemperatureCamera/venv/bin/python /home/pi/TemperatureCamera/main.py --flip-h
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
