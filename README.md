@@ -4,6 +4,8 @@ A Flask-based thermal camera server. The Raspberry Pi sends raw MLX90640 tempera
 frames to the browser over a binary WebSocket (stream contract v1); the browser does all
 rendering and recording.
 
+![Live view on desktop](docs/thermal_camera_desktop.png)
+
 ## Features
 
 - Real-time thermal frames as v1 binary WebSocket messages (1,568 bytes/frame, 12 fps default)
@@ -26,6 +28,16 @@ rendering and recording.
 - Raspberry Pi OS, 32-bit or 64-bit — the server only streams ~19 kB/s, either works
 - I2C enabled
 
+## Quick Start (no hardware needed)
+
+```bash
+git clone https://github.com/<github-user>/temperature-camera.git
+cd temperature-camera
+pip install -r requirements.txt
+python3 main.py --demo
+# Open http://localhost:5000 — shows a synthetic thermal field
+```
+
 ## Installation
 
 ### 1. System Setup
@@ -41,7 +53,9 @@ sudo apt-get install -y python3-pip python3-venv
 sudo raspi-config
 # Navigate to: Interface Options -> I2C -> Enable
 
-# Increase I2C baud rate for better performance (optional)
+# Optional: raise the I2C baud rate. 1 MHz is the MLX90640 maximum, but marginal
+# wiring often fails at that speed — if reads fail with "Too many retries",
+# remove this line and reboot (see Troubleshooting)
 echo "dtparam=i2c_arm_baudrate=1000000" | sudo tee -a /boot/firmware/config.txt
 
 # Reboot
@@ -147,12 +161,16 @@ python3 main.py --demo     # run the server without a sensor
 
 ### I2C Issues
 ```bash
-# Check if I2C device is detected
+# Check if the MLX90640 is detected (expect 0x33)
 sudo i2cdetect -y 1
-
-# If not detected, check connections and try:
-sudo reboot
 ```
+
+- Logs show `Sensor read failed ... Too many retries`: the Pi opens `/dev/i2c-1`
+  fine, but the sensor does not ACK — usually wiring/pull-ups, or the I2C baud
+  rate pushed too high. Remove `dtparam=i2c_arm_baudrate=...` from
+  `/boot/firmware/config.txt` and reboot; check the sensor is powered at 3.3 V
+  (not 5 V).
+- If `i2cdetect` shows nothing at all, check wiring and reboot.
 
 ### Stream Issues
 ```bash
