@@ -75,8 +75,9 @@ python3 main.py --demo
 # Update system
 sudo apt-get update && sudo apt-get upgrade -y
 
-# Install dependencies
-sudo apt-get install -y python3-pip python3-venv
+# Install dependencies (libgpiod-dev/python3-dev are needed to build the
+# gpiod wheel on the Pi if no prebuilt wheel matches its architecture)
+sudo apt-get install -y python3-pip python3-venv python3-dev libgpiod-dev
 
 # Enable I2C
 sudo raspi-config
@@ -210,6 +211,10 @@ sudo i2cdetect -y 1
   `/boot/firmware/config.txt` and reboot; check the sensor is powered at 3.3 V
   (not 5 V).
 - If `i2cdetect` shows nothing at all, check wiring and reboot.
+- Startup fails with `Failed to initialize MLX90640: The platform library 'gpiod'
+  was not found`: Blinka needs gpiod even for I2C-only use. Install
+  `libgpiod-dev` (system setup above), then reinstall the Pi requirements into
+  the venv: `make setup-venv`.
 
 ### Stream Issues
 ```bash

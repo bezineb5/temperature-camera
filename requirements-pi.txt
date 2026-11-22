@@ -1,2 +1,5 @@
 # Hardware dependencies, only needed on the Raspberry Pi (installed by `make setup-venv`)
 adafruit-circuitpython-mlx90640==1.3.9
+# Blinka's GPIO backend, required even for I2C-only use; needs libgpiod-dev
+# at build time if no prebuilt wheel matches the Pi's arch (see README)
+gpiod>=2.2.2,<3
