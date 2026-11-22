@@ -1,229 +1,2242 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Thermal Camera</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Thermal Camera — Live view</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* OD-LAYOUT-PRIMITIVES v1 — structure only: display, flex/grid, overflow, wrapping, ratio, geometry.
+   Put this @layer first; product CSS outside the layer wins ordinary layout rules.
+   Native hidden and closed-dialog states take precedence over component display rules. */
+@layer od-layout {
+  [hidden]:not([hidden="until-found" i]) { display: none !important; }
+  dialog:not([open]) { display: none !important; }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #1a1a1a;
-            color: #e0e0e0;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
+  :where(.od-stack,.od-row,.od-row-top,.od-cluster,.od-grid,.od-field,.od-stat,.od-cell,.od-tile) > :where(*) { min-width: 0; }
 
-        .container {
-            max-width: 1200px;
-            width: 100%;
-        }
+  /* containers */
+  .od-stack   { display: flex; flex-direction: column; gap: var(--od-gap, 8px); }
+  .od-row     { display: flex; align-items: center; gap: var(--od-gap, 8px); }
+  .od-row-top { display: flex; align-items: flex-start; gap: var(--od-gap, 8px); }
+  .od-cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--od-gap, 8px); }
+  .od-fill    { flex: 1 1 0; min-width: 0; }
+  .od-fixed   { flex: none; }
+  .od-grid    { display: grid; gap: var(--od-gap, 12px); grid-template-columns: repeat(var(--od-cols, 3), minmax(0, 1fr)); }
 
-        h1 {
-            text-align: center;
-            margin-bottom: 30px;
-            color: #fff;
-        }
+  /* stacked information: each piece is its own line — never sibling inline spans */
+  .od-stat, .od-field, .od-cell { display: grid; gap: var(--od-gap, 2px); }
+  :where(.od-stat,.od-field,.od-cell) > :where(*) { display: block; }
+  .od-tile { display: grid; grid-template-rows: auto 1fr; }
+  :where(.od-tile) > :where(*) { display: block; }
 
-        .controls {
-            background: #2a2a2a;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
+  /* media keeps its intrinsic ratio by default; never a distorted or cropped
+     cover by accident. height:auto lets the ratio win over an <img height="…">
+     attribute. Cropping to a uniform box is an explicit opt-in: set --od-ratio
+     AND add .od-media-cover together (per the core rule, only where a crop is
+     deliberate — tile thumbs, decorative fills — never on full-frame content). */
+  .od-media { display: block; width: 100%; height: auto; aspect-ratio: var(--od-ratio, auto); }
+  .od-media-cover { object-fit: cover; }
 
-        .control-group {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
+  /* functional inline SVG icons opt into bounded geometry; content SVGs keep their own */
+  .od-icon { display: inline-block; inline-size: var(--od-icon-size, 1em); block-size: var(--od-icon-size, 1em); flex: none; }
 
-        label {
-            font-weight: 500;
-            min-width: 120px;
-        }
+  /* data text only — authored copy is rewritten to its budget instead */
+  .od-truncate { display: block; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .od-clamp-2, .od-clamp-3 { display: -webkit-box; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+  .od-clamp-2 { -webkit-line-clamp: 2; }
+  .od-clamp-3 { -webkit-line-clamp: 3; }
+  .od-lines-2 { min-height: calc(2 * 1.4em); }   /* block-level reservation for a shared baseline */
+  .od-nowrap  { white-space: nowrap; }           /* 数字+单位 · 价格+起 · 日期+星期 */
+  .od-keep    { word-break: keep-all; overflow-wrap: anywhere; } /* CJK labels break at spaces / <wbr> first */
 
-        select {
-            flex: 1;
-            padding: 10px;
-            background: #3a3a3a;
-            color: #e0e0e0;
-            border: 1px solid #4a4a4a;
-            border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
-        }
+  /* screen skeleton (optional): bars take their own space, the middle scrolls — no padding guessed for chrome */
+  .od-screen { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
+  .od-scroll { overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
 
-        select:hover {
-            background: #4a4a4a;
-        }
+  /* horizontal rail: the next item peeks at the edge; trailing room survives overflow */
+  .od-rail { display: flex; gap: var(--od-gap, 8px); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: none;
+             padding-inline: var(--od-rail-pad, 16px); scroll-padding-inline: var(--od-rail-pad, 16px); }
+  .od-rail::-webkit-scrollbar { display: none; }
+  :where(.od-rail) > :where(*) { flex: none; scroll-snap-align: start; }
+  :where(.od-rail) > :where(:last-child) { margin-inline-end: var(--od-rail-pad, 16px); }
 
-        select:focus {
-            outline: none;
-            border-color: #5a9;
-        }
+  .od-spacer { flex: none; visibility: hidden; pointer-events: none; }
+  .od-touch  { min-width: 44px; min-height: 44px; }
+}
+:root [hidden]:where(:not([hidden="until-found" i])) { display: none; }
+/* /OD-LAYOUT-PRIMITIVES v1 */
 
-        .status {
-            padding: 8px 12px;
-            border-radius: 4px;
-            font-size: 14px;
-            display: none;
-        }
+:root {
+  --bg: #0a0c0d;
+  --panel: #101416;
+  --panel-2: #141a1d;
+  --panel-3: #1b2428;
+  --line: #232a2d;
+  --line-2: #333d42;
+  --text: #e9eeef;
+  --text-2: #a6b0b5;
+  --text-3: #8b9599;
+  --focus: #8fd8cf;
+  --rec: #ff6f5e;
+  --danger-text: #ffa596;
+  --warm: #f0b46a;
+  --font-ui: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 10px;
+}
 
-        .status.success {
-            background: #2a5a2a;
-            color: #8f8;
-            display: block;
-        }
+*, *::before, *::after { box-sizing: border-box; }
 
-        .status.error {
-            background: #5a2a2a;
-            color: #f88;
-            display: block;
-        }
+html { color-scheme: dark; }
 
-        .status.loading {
-            background: #3a3a5a;
-            color: #aaf;
-            display: block;
-        }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
 
-        .video-container {
-            background: #000;
-            border-radius: 8px;
-            padding: 10px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-        }
+h1, h2, h3, p { margin: 0; }
 
-        #video-stream {
-            max-width: 100%;
-            height: auto;
-            display: block;
-        }
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
 
-        .error-message {
-            color: #f88;
-            text-align: center;
-            padding: 20px;
-        }
-    </style>
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.page {
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: 16px 16px 48px;
+}
+@media (min-width: 768px) {
+  .page { padding: 20px 24px 56px; }
+}
+
+/* ---------- top bar ---------- */
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 24px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand { display: flex; align-items: center; gap: 10px; }
+
+.brand__mark {
+  position: relative;
+  flex: none;
+  width: 22px; height: 22px;
+  border: 1.5px solid var(--text);
+  border-radius: 4px;
+}
+.brand__mark::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 1px;
+  background: var(--text);
+}
+
+.brand__title { font-size: 15px; font-weight: 500; letter-spacing: 0.01em; }
+
+.brand__sub {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  color: var(--text-3);
+}
+
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-3);
+}
+.status__item { display: inline-flex; align-items: center; gap: 6px; }
+.status__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warm); flex: none; }
+.status__dot--live { background: var(--rec); }
+
+/* ---------- workspace ---------- */
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding-top: 16px;
+}
+@media (min-width: 1024px) {
+  .workspace { grid-template-columns: minmax(0, 1fr) 352px; gap: 20px; padding-top: 20px; }
+}
+
+.controls { display: grid; gap: 16px; align-content: start; }
+@media (min-width: 1024px) { .controls { gap: 20px; } }
+
+/* ---------- panels ---------- */
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: 14px;
+}
+@media (min-width: 768px) { .panel { padding: 18px; } }
+
+.panel__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px 16px;
+}
+
+.panel__title { font-size: 17px; font-weight: 500; letter-spacing: -0.01em; }
+
+.panel__hint {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text-3);
+  max-width: 46ch;
+}
+
+/* ---------- live view ---------- */
+
+.view-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
+
+.view-actions { display: grid; justify-items: end; gap: 6px; }
+
+.view-actions .btn { white-space: nowrap; }
+
+.view-note {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.02em;
+  color: var(--text-2);
+  text-align: right;
+}
+
+.head-rec-time {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #ffb3a6;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 111, 94, 0.55);
+  border-radius: 5px;
+  background: rgba(255, 111, 94, 0.08);
+  font-variant-numeric: tabular-nums;
+}
+
+.stage {
+  position: relative;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: #05070a;
+}
+
+.stage__canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+}
+
+.stage__badges {
+  position: absolute;
+  top: 10px; right: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--line-2);
+  background: rgba(8, 11, 12, 0.86);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+}
+.badge--rec { border-color: rgba(255, 111, 94, 0.7); color: #ffd7d0; }
+.badge__dot { width: 7px; height: 7px; border-radius: 50%; background: var(--rec); flex: none; animation: pulse 1.4s ease-in-out infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.reticle {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 34px; height: 34px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  opacity: 0.6;
+}
+.reticle::before,
+.reticle::after {
+  content: '';
+  position: absolute;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.55);
+}
+.reticle::before { left: 50%; top: 0; width: 1px; height: 100%; transform: translateX(-50%); }
+.reticle::after { top: 50%; left: 0; height: 1px; width: 100%; transform: translateY(-50%); }
+
+.spots { position: absolute; inset: 0; pointer-events: none; }
+
+.spot {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid;
+  background: rgba(6, 9, 10, 0.87);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transform: translate(20px, -50%);
+}
+.spot--flip { transform: translate(calc(-100% - 20px), -50%); }
+.spot--hot { border-color: rgba(255, 157, 134, 0.8); color: #ffd9cf; }
+.spot--cold { border-color: rgba(158, 201, 245, 0.8); color: #d9ecfd; }
+.spot__key { font-size: 9.5px; letter-spacing: 0.1em; }
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--line);
+}
+.stat { background: var(--panel); padding: 9px 11px; }
+.stat__label {
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.stat__value {
+  font-family: var(--font-mono);
+  font-size: clamp(17px, 4.4vw, 23px);
+  line-height: 1.3;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.stat__value .unit-suffix { font-size: 0.62em; color: var(--text-2); margin-left: 2px; }
+
+.stream-meta {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  color: var(--text-3);
+}
+
+/* ---------- buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--line-2);
+  border-radius: 7px;
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 160ms ease-out, border-color 160ms ease-out;
+}
+.btn .od-icon { --od-icon-size: 15px; }
+.btn:hover { background: var(--panel-3); border-color: #3f4a50; }
+.btn--primary { background: var(--text); border-color: var(--text); color: #0a0c0d; }
+.btn--primary:hover { background: #ffffff; border-color: #ffffff; color: #050708; }
+.btn--rec { background: var(--rec); border-color: var(--rec); color: #1b0704; }
+.btn--rec:hover { background: #ff8474; border-color: #ff8474; color: #1b0704; }
+.btn--rec-quiet { background: rgba(255, 111, 94, 0.12); border-color: rgba(255, 111, 94, 0.6); color: #ffc4b9; }
+.btn--rec-quiet:hover { background: rgba(255, 111, 94, 0.2); border-color: rgba(255, 111, 94, 0.8); }
+.btn--danger { background: #2a1512; border-color: #5d2c24; color: var(--danger-text); }
+.btn--danger:hover { background: #381a15; border-color: #7a3a2e; color: #ffc3b7; }
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  background: #171d20;
+  border-color: var(--line);
+  color: var(--text-3);
+  cursor: not-allowed;
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: 40px; height: 40px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: background-color 160ms ease-out, border-color 160ms ease-out;
+}
+.icon-btn .od-icon { --od-icon-size: 16px; }
+.icon-btn:hover { background: var(--panel-3); border-color: var(--line-2); }
+.icon-btn--danger:hover { background: #22120f; border-color: #5a2b24; color: var(--danger-text); }
+@media (hover: none) {
+  .icon-btn { width: 44px; height: 44px; }
+}
+
+/* ---------- segmented ---------- */
+
+.segmented {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #0c1012;
+}
+.segmented button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-3);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 160ms ease-out;
+}
+.segmented button:hover { background: var(--panel-3); }
+.segmented button[aria-pressed="true"] { background: var(--text); color: #0a0c0d; }
+.segmented button[aria-pressed="true"]:hover { background: #ffffff; }
+.segmented--sm button { min-height: 28px; padding: 0 9px; font-family: var(--font-mono); font-size: 12px; }
+
+/* ---------- palette ---------- */
+
+.palettes { margin-top: 12px; }
+
+.swatch {
+  display: grid;
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--panel-2);
+  color: var(--text-2);
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease-out, background-color 160ms ease-out;
+}
+.swatch:hover { border-color: var(--line-2); background: var(--panel-3); }
+.swatch[aria-pressed="true"] { border-color: #b9c3c6; background: var(--panel-3); color: var(--text); }
+
+.swatch__bar {
+  display: block;
+  height: 15px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+
+.swatch__label { display: flex; align-items: center; justify-content: space-between; gap: 3px; }
+.swatch__label .od-icon { --od-icon-size: 12px; color: var(--focus); opacity: 0; }
+.swatch[aria-pressed="true"] .swatch__label .od-icon { opacity: 1; }
+
+/* ---------- range ---------- */
+
+.range { display: grid; gap: 14px; margin-top: 14px; }
+.range__group { display: grid; gap: 6px; }
+.range__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.range__label { font-size: 13px; color: var(--text-2); }
+
+.num-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: #0c1012;
+}
+.num-wrap:focus-within { border-color: var(--focus); }
+
+.num {
+  width: 66px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+.num::-webkit-outer-spin-button,
+.num::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.num:disabled { color: var(--text-3); }
+.num[aria-invalid="true"] { color: var(--danger-text); }
+
+.num-wrap .unit-suffix { font-family: var(--font-mono); font-size: 12px; color: var(--text-3); }
+
+.slider {
+  width: 100%;
+  height: 22px;
+  margin: 0;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+.slider::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: #2a3337; }
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  margin-top: -6px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--text);
+}
+.slider::-moz-range-track { height: 4px; border-radius: 2px; background: #2a3337; }
+.slider::-moz-range-thumb { width: 16px; height: 16px; border: 0; border-radius: 50%; background: var(--text); }
+.slider:disabled { cursor: not-allowed; }
+.slider:disabled::-webkit-slider-runnable-track { background: #1c2326; }
+.slider:disabled::-webkit-slider-thumb { background: #5a6569; }
+.slider:disabled::-moz-range-track { background: #1c2326; }
+.slider:disabled::-moz-range-thumb { background: #5a6569; }
+
+.error {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--danger-text);
+  padding-left: 10px;
+  border-left: 2px solid #7a3a2e;
+}
+
+.range__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.range__meta {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- recording ---------- */
+
+.rec-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+  margin-top: 14px;
+}
+.rec-clock {
+  font-family: var(--font-mono);
+  font-size: 19px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.rec-clock.is-live { color: #ff9d8e; }
+
+.notice {
+  margin-top: 12px;
+  padding: 8px 10px;
+  border: 1px solid #4a3620;
+  border-radius: var(--r-sm);
+  background: #211a12;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #ffcf9a;
+}
+
+.list-title {
+  margin: 18px 0 8px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.sessions { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+
+.session {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-2);
+}
+.session__info { flex: 1 1 auto; }
+.session__name { font-size: 13.5px; color: var(--text); }
+.session__meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.empty { margin-top: 10px; font-size: 13px; color: var(--text-3); }
+
+/* ---------- dialog ---------- */
+
+.dialog {
+  width: min(420px, calc(100vw - 32px));
+  padding: 20px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+.dialog::backdrop { background: rgba(4, 6, 7, 0.72); }
+.dialog__title { font-size: 17px; font-weight: 500; }
+.dialog__body { margin-top: 8px; font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
+.dialog__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+@media (max-width: 600px) {
+  .view-head { flex-direction: column; align-items: stretch; }
+  .view-actions .od-cluster { justify-content: flex-end; }
+  .view-actions .btn {
+    min-height: 44px;
+    padding: 0 9px;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .view-actions .btn .od-icon { --od-icon-size: 14px; }
+  .head-rec-time { font-size: 11px; padding: 3px 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>Thermal Camera</h1>
-        
-        <div class="controls">
-            <div class="control-group">
-                <label for="colormap-select">Colormap:</label>
-                <select id="colormap-select">
-                    <option value="">Loading...</option>
-                </select>
-            </div>
-            <div class="status" id="status"></div>
-        </div>
+<div class="page">
 
-        <div class="video-container">
-            <img id="video-stream" src="/video_feed" alt="Thermal Camera Stream">
-        </div>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__mark" aria-hidden="true"></span>
+      <div>
+        <span class="brand__title">Thermal Camera</span>
+        <span class="brand__sub">Raspberry Pi · MLX90640 32×24</span>
+      </div>
     </div>
+    <div class="status" aria-label="Device status">
+      <span class="status__item"><span class="status__dot" id="sourceDot" aria-hidden="true"></span><span id="sourceLabel">Demo field</span></span>
+      <span class="status__item" id="frameMeta">—</span>
+      <span class="status__item" id="fpsReadout">— fps</span>
+      <span class="status__item" id="sessionClock">00:00:00</span>
+    </div>
+  </header>
 
-    <script>
-        const colormapSelect = document.getElementById('colormap-select');
-        const statusDiv = document.getElementById('status');
-        const videoStream = document.getElementById('video-stream');
+  <main class="workspace">
 
-        // Show status message
-        function showStatus(message, type) {
-            statusDiv.textContent = message;
-            statusDiv.className = 'status ' + type;
-            if (type !== 'loading') {
-                setTimeout(() => {
-                    statusDiv.className = 'status';
-                }, 3000);
-            }
-        }
+    <section class="panel" aria-labelledby="viewTitle">
+      <div class="view-head">
+        <div class="od-stack" style="--od-gap:2px">
+          <h1 class="panel__title" id="viewTitle">Live view</h1>
+          <p class="panel__hint" id="viewSub">Synthetic sensor, encoded as v1 binary frames — the same buffer a Pi socket would deliver.</p>
+        </div>
+        <div class="view-actions">
+          <div class="od-cluster">
+            <button class="btn" id="headRecBtn" type="button">
+              <svg class="od-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5.5"/></svg>
+              <span>Record</span>
+            </button>
+            <button class="btn" id="snapBtn" type="button">
+              <svg class="od-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8.6h3.2l1.4-2.2h6.8l1.4 2.2H20v10.2H4z"/><circle cx="12" cy="13.4" r="3"/></svg>
+              <span>Snapshot</span>
+            </button>
+            <button class="btn" id="freezeBtn" type="button" aria-pressed="false">
+              <svg class="od-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5v14M15 5v14"/></svg>
+              <span>Freeze</span>
+            </button>
+            <span class="head-rec-time" id="headRecTime" hidden>00:00</span>
+          </div>
+          <p class="view-note" id="snapNote" role="status" hidden></p>
+        </div>
+      </div>
 
-        // Load available colormaps and current selection
-        async function loadColormaps() {
-            try {
-                const response = await fetch('/api/colormap');
-                if (!response.ok) {
-                    throw new Error('Failed to load colormaps');
-                }
-                const data = await response.json();
-                
-                // Populate select dropdown
-                colormapSelect.innerHTML = '';
-                data.available.forEach(colormap => {
-                    const option = document.createElement('option');
-                    option.value = colormap;
-                    option.textContent = colormap.charAt(0).toUpperCase() + colormap.slice(1);
-                    if (colormap === data.current) {
-                        option.selected = true;
-                    }
-                    colormapSelect.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Error loading colormaps:', error);
-                showStatus('Error loading colormaps: ' + error.message, 'error');
-                colormapSelect.innerHTML = '<option value="">Error loading colormaps</option>';
-            }
-        }
+      <div class="stage">
+        <canvas class="stage__canvas" id="thermal" width="1280" height="960" role="img"
+                aria-label="Live thermal frame of the synthetic test field">
+          Live thermal frame.
+        </canvas>
+        <div class="stage__badges">
+          <span class="badge badge--rec" id="recBadge" hidden><span class="badge__dot" aria-hidden="true"></span>REC <span id="recTime">00:00</span></span>
+          <span class="badge" id="freezeBadge" hidden>Frozen</span>
+        </div>
+        <div class="reticle" aria-hidden="true"></div>
+        <div class="spots" aria-hidden="true">
+          <span class="spot spot--hot" id="spotHot"><span class="spot__key">HOT</span><span id="spotHotVal">—</span></span>
+          <span class="spot spot--cold" id="spotCold"><span class="spot__key">COLD</span><span id="spotColdVal">—</span></span>
+        </div>
+      </div>
 
-        // Change colormap
-        async function changeColormap(colormap) {
-            if (!colormap) return;
-            
-            try {
-                const response = await fetch('/api/colormap', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ colormap: colormap }),
-                });
+      <div class="stats">
+        <div class="stat od-stat">
+          <span class="stat__label">Center</span>
+          <span class="stat__value od-nowrap"><span id="valCenter">—</span><span class="unit-suffix">°C</span></span>
+        </div>
+        <div class="stat od-stat">
+          <span class="stat__label">Hot spot</span>
+          <span class="stat__value od-nowrap"><span id="valHot">—</span><span class="unit-suffix">°C</span></span>
+        </div>
+        <div class="stat od-stat">
+          <span class="stat__label">Cold spot</span>
+          <span class="stat__value od-nowrap"><span id="valCold">—</span><span class="unit-suffix">°C</span></span>
+        </div>
+      </div>
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to change colormap');
-                }
+      <p class="stream-meta" id="streamMeta">—</p>
+    </section>
 
-                // Force video stream refresh by adding timestamp
-                const timestamp = new Date().getTime();
-                videoStream.src = `/video_feed?t=${timestamp}`;
-            } catch (error) {
-                console.error('Error changing colormap:', error);
-                showStatus('Error: ' + error.message, 'error');
-            }
-        }
+    <aside class="controls" aria-label="Camera controls">
 
-        // Handle colormap selection change
-        colormapSelect.addEventListener('change', (e) => {
-            changeColormap(e.target.value);
-        });
+      <section class="panel" aria-labelledby="paletteTitle">
+        <div class="panel__head">
+          <div class="od-stack" style="--od-gap:2px">
+            <h2 class="panel__title" id="paletteTitle">Palette</h2>
+            <p class="panel__hint">Color map applied to the frame.</p>
+          </div>
+        </div>
+        <div class="palettes od-grid" id="paletteGrid" role="group" aria-label="Color palette" style="--od-cols:3;--od-gap:8px"></div>
+      </section>
 
-        // Handle video stream errors
-        videoStream.addEventListener('error', () => {
-            videoStream.alt = 'Error loading video stream';
-            showStatus('Error loading video stream', 'error');
-        });
+      <section class="panel" aria-labelledby="rangeTitle">
+        <div class="panel__head">
+          <div class="od-stack" style="--od-gap:2px">
+            <h2 class="panel__title" id="rangeTitle">Temperature range</h2>
+            <p class="panel__hint" id="rangeHint">Auto follows the hottest and coldest pixel in the frame.</p>
+          </div>
+          <div class="segmented" id="rangeMode" role="group" aria-label="Range mode">
+            <button type="button" data-mode="auto" aria-pressed="true">Auto</button>
+            <button type="button" data-mode="manual" aria-pressed="false">Manual</button>
+          </div>
+        </div>
 
-        // Load colormaps on page load
-        loadColormaps();
-    </script>
+        <div class="range">
+          <div class="range__group">
+            <div class="range__head">
+              <label class="range__label" for="minSlider">Minimum</label>
+              <div class="num-wrap">
+                <input class="num" id="minInput" type="number" inputmode="decimal" step="0.1"
+                       aria-label="Range minimum" aria-describedby="rangeError" disabled>
+                <span class="unit-suffix">°C</span>
+              </div>
+            </div>
+            <input class="slider" id="minSlider" type="range" min="-20" max="120" step="0.1" value="16"
+                   aria-label="Range minimum slider" disabled>
+          </div>
+
+          <div class="range__group">
+            <div class="range__head">
+              <label class="range__label" for="maxSlider">Maximum</label>
+              <div class="num-wrap">
+                <input class="num" id="maxInput" type="number" inputmode="decimal" step="0.1"
+                       aria-label="Range maximum" aria-describedby="rangeError" disabled>
+                <span class="unit-suffix">°C</span>
+              </div>
+            </div>
+            <input class="slider" id="maxSlider" type="range" min="-20" max="120" step="0.1" value="42"
+                   aria-label="Range maximum slider" disabled>
+          </div>
+
+          <p class="error" id="rangeError" role="alert" hidden></p>
+
+          <div class="range__foot">
+            <div class="od-stat" style="--od-gap:2px">
+              <span class="range__label">Span</span>
+              <span class="range__meta od-nowrap" id="spanValue">—</span>
+            </div>
+            <div class="od-stat" style="--od-gap:2px">
+              <span class="range__label">Frame</span>
+              <span class="range__meta od-nowrap" id="frameRange">—</span>
+            </div>
+            <div class="segmented segmented--sm" id="unitGroup" role="group" aria-label="Temperature unit">
+              <button type="button" data-unit="C" aria-pressed="true">°C</button>
+              <button type="button" data-unit="F" aria-pressed="false">°F</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="recTitle">
+        <div class="panel__head">
+          <div class="od-stack" style="--od-gap:2px">
+            <h2 class="panel__title" id="recTitle">Session video</h2>
+            <p class="panel__hint">Records the live view. Clips stay in this browser tab until you download them.</p>
+          </div>
+        </div>
+
+        <div class="rec-bar">
+          <button class="btn btn--primary" id="recBtn" type="button">
+            <svg class="od-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5.5"/></svg>
+            <span>Record</span>
+          </button>
+          <span class="rec-clock" id="recClock">00:00</span>
+          <span class="status__item" id="recStatus">Idle</span>
+        </div>
+
+        <p class="notice" id="recNotice" hidden></p>
+
+        <h3 class="list-title">This session</h3>
+        <ul class="sessions" id="sessionList"></ul>
+        <p class="empty" id="sessionEmpty">No clips yet. Press Record to capture the live view.</p>
+      </section>
+
+    </aside>
+  </main>
+</div>
+
+<dialog class="dialog" id="confirmDialog" aria-labelledby="confirmTitle">
+  <h2 class="dialog__title" id="confirmTitle">Delete clip?</h2>
+  <p class="dialog__body" id="confirmBody">This removes the recording from this session. Copies you already downloaded are not affected.</p>
+  <div class="dialog__actions">
+    <button class="btn" id="confirmCancel" type="button">Cancel</button>
+    <button class="btn btn--danger" id="confirmDelete" type="button">Delete clip</button>
+  </div>
+</dialog>
+
+<p class="sr-only" id="srStatus" role="status" aria-live="polite"></p>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ------------------------------------------------------------------ */
+  /* helpers                                                             */
+  /* ------------------------------------------------------------------ */
+
+  function $(id) { return document.getElementById(id); }
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  var ICONS = {
+    pause: '<path d="M9 5v14M15 5v14"/>',
+    play: '<path d="M8.5 5.6l10 6.4-10 6.4z"/>',
+    record: '<circle cx="12" cy="12" r="5.5"/>',
+    stop: '<rect x="7" y="7" width="10" height="10" rx="1.8"/>',
+    download: '<path d="M12 4v10m0 0l3.5-3.5M12 14l-3.5-3.5M5 19h14"/>',
+    trash: '<path d="M4.5 7h15M9.5 7V5.2h5V7M7 7l.9 11.5h8.2L17 7"/>',
+    check: '<path d="M5 12.5l4.6 4.5L19 7"/>'
+  };
+
+  function icon(name) {
+    return '<svg class="od-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS[name] + '</svg>';
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function clockText(seconds) {
+    var s = Math.max(0, Math.floor(seconds));
+    return pad2(Math.floor(s / 3600)) + ':' + pad2(Math.floor((s % 3600) / 60)) + ':' + pad2(s % 60);
+  }
+
+  function mmss(seconds) {
+    var s = Math.max(0, Math.round(seconds));
+    return pad2(Math.floor(s / 60)) + ':' + pad2(s % 60);
+  }
+
+  function bytesText(size) {
+    if (size < 1024) return size + ' B';
+    if (size < 1024 * 1024) return (size / 1024).toFixed(0) + ' KB';
+    return (size / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function timeOf(date) { return pad2(date.getHours()) + ':' + pad2(date.getMinutes()); }
+
+  function round1(n) { return Math.round(n * 10) / 10; }
+
+  /* ------------------------------------------------------------------ */
+  /* palettes                                                            */
+  /* ------------------------------------------------------------------ */
+
+  var PALETTES = [
+    { id: 'iron', name: 'Iron', stops: [
+      [0.00, [2, 2, 8]], [0.14, [24, 6, 58]], [0.30, [92, 16, 96]], [0.46, [168, 42, 62]],
+      [0.62, [222, 100, 32]], [0.78, [248, 172, 62]], [0.90, [255, 232, 150]], [1.00, [255, 255, 255]]
+    ] },
+    { id: 'whitehot', name: 'White hot', stops: [
+      [0.00, [4, 5, 7]], [0.35, [82, 88, 92]], [0.62, [154, 160, 164]], [0.84, [212, 217, 219]], [1.00, [255, 255, 255]]
+    ] },
+    { id: 'blackhot', name: 'Black hot', stops: [
+      [0.00, [255, 255, 255]], [0.35, [198, 203, 205]], [0.62, [126, 132, 136]], [0.84, [56, 61, 64]], [1.00, [3, 4, 6]]
+    ] },
+    { id: 'rainbow', name: 'Rainbow', stops: [
+      [0.00, [12, 20, 110]], [0.22, [0, 116, 186]], [0.42, [0, 166, 130]], [0.60, [176, 196, 44]],
+      [0.78, [228, 116, 30]], [1.00, [176, 20, 30]]
+    ] },
+    { id: 'arctic', name: 'Arctic', stops: [
+      [0.00, [8, 20, 52]], [0.34, [24, 92, 146]], [0.60, [84, 166, 196]], [0.80, [176, 220, 228]], [1.00, [248, 253, 255]]
+    ] },
+    { id: 'lava', name: 'Lava', stops: [
+      [0.00, [10, 6, 6]], [0.34, [74, 16, 14]], [0.60, [168, 44, 18]], [0.80, [230, 130, 40]], [1.00, [255, 234, 182]]
+    ] }
+  ];
+
+  var lutCache = {};
+
+  function lutFromStops(stops) {
+    var lut = new Uint8Array(256 * 3);
+    for (var i = 0; i < 256; i++) {
+      var t = i / 255;
+      var a = stops[0];
+      var b = stops[stops.length - 1];
+      for (var s = 0; s < stops.length - 1; s++) {
+        if (t >= stops[s][0] && t <= stops[s + 1][0]) { a = stops[s]; b = stops[s + 1]; break; }
+      }
+      var span = (b[0] - a[0]) || 1;
+      var k = Math.min(1, Math.max(0, (t - a[0]) / span));
+      lut[i * 3] = Math.round(a[1][0] + (b[1][0] - a[1][0]) * k);
+      lut[i * 3 + 1] = Math.round(a[1][1] + (b[1][1] - a[1][1]) * k);
+      lut[i * 3 + 2] = Math.round(a[1][2] + (b[1][2] - a[1][2]) * k);
+    }
+    return lut;
+  }
+
+  function lutFor(id) {
+    if (!lutCache[id]) {
+      var p = PALETTES.filter(function (x) { return x.id === id; })[0] || PALETTES[0];
+      lutCache[id] = lutFromStops(p.stops);
+    }
+    return lutCache[id];
+  }
+
+  function gradientCss(stops) {
+    var parts = stops.map(function (s) {
+      return 'rgb(' + s[1][0] + ' ' + s[1][1] + ' ' + s[1][2] + ') ' + (s[0] * 100).toFixed(1) + '%';
+    });
+    return 'linear-gradient(90deg, ' + parts.join(', ') + ')';
+  }
+
+  function paletteName() {
+    var p = PALETTES.filter(function (x) { return x.id === state.palette; })[0];
+    return p ? p.name : PALETTES[0].name;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* state                                                               */
+  /* ------------------------------------------------------------------ */
+
+  var state = {
+    palette: 'iron',
+    mode: 'auto',
+    unit: 'C',
+    minC: 16,
+    maxC: 42,
+    frozen: false,
+    recording: false,
+    stopping: false
+  };
+
+  var sessions = [];
+  var clipCounter = 0;
+  var pendingDeleteId = null;
+
+  /* ------------------------------------------------------------------ */
+  /* elements                                                            */
+  /* ------------------------------------------------------------------ */
+
+  var canvas = $('thermal');
+  var ctx = canvas.getContext('2d');
+
+  var freezeBtn = $('freezeBtn');
+  var recBtn = $('recBtn');
+  var headRecBtn = $('headRecBtn');
+  var headRecTime = $('headRecTime');
+  var recBadge = $('recBadge');
+  var recTime = $('recTime');
+  var recClock = $('recClock');
+  var recStatus = $('recStatus');
+  var recNotice = $('recNotice');
+  var freezeBadge = $('freezeBadge');
+  var snapBtn = $('snapBtn');
+  var snapNote = $('snapNote');
+  var fpsReadout = $('fpsReadout');
+  var frameMeta = $('frameMeta');
+  var sessionClock = $('sessionClock');
+
+  var spotHot = $('spotHot');
+  var spotCold = $('spotCold');
+  var spotHotVal = $('spotHotVal');
+  var spotColdVal = $('spotColdVal');
+
+  var valCenter = $('valCenter');
+  var valHot = $('valHot');
+  var valCold = $('valCold');
+  var streamMeta = $('streamMeta');
+
+  var paletteGrid = $('paletteGrid');
+  var rangeMode = $('rangeMode');
+  var unitGroup = $('unitGroup');
+  var minSlider = $('minSlider');
+  var maxSlider = $('maxSlider');
+  var minInput = $('minInput');
+  var maxInput = $('maxInput');
+  var rangeError = $('rangeError');
+  var rangeHint = $('rangeHint');
+  var spanValue = $('spanValue');
+  var frameRange = $('frameRange');
+
+  var sessionList = $('sessionList');
+  var sessionEmpty = $('sessionEmpty');
+
+  var confirmDialog = $('confirmDialog');
+  var confirmTitle = $('confirmTitle');
+  var confirmBody = $('confirmBody');
+  var confirmDelete = $('confirmDelete');
+  var confirmCancel = $('confirmCancel');
+
+  var srStatus = $('srStatus');
+
+  var unitSuffixes = Array.prototype.slice.call(document.querySelectorAll('.unit-suffix'));
+
+  function announce(message) {
+    if (!srStatus) return;
+    srStatus.textContent = '';
+    window.setTimeout(function () { srStatus.textContent = message; }, 60);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* temperature units                                                   */
+  /* ------------------------------------------------------------------ */
+
+  function toDisp(celsius) { return state.unit === 'F' ? celsius * 9 / 5 + 32 : celsius; }
+  function toCelsius(disp) { return state.unit === 'F' ? (disp - 32) * 5 / 9 : disp; }
+  function fmt(celsius) { return toDisp(celsius).toFixed(1); }
+  function fmtCell(celsius) { return isFinite(celsius) ? fmt(celsius) : '—'; }
+  function unitText() { return '°' + state.unit; }
+
+  /* ------------------------------------------------------------------ */
+  /* synthetic thermal field                                             */
+  /* ------------------------------------------------------------------ */
+
+  var SENSOR_W = 32;
+  var SENSOR_H = 24;
+  var CENTER_INDEX = (SENSOR_H >> 1) * SENSOR_W + (SENSOR_W >> 1);
+
+  var sensor = document.createElement('canvas');
+  sensor.width = SENSOR_W;
+  sensor.height = SENSOR_H;
+  var sctx = sensor.getContext('2d');
+  var frameImage = sctx.createImageData(SENSOR_W, SENSOR_H);
+
+  var field = new Float32Array(SENSOR_W * SENSOR_H);
+  var frameMin = 20;
+  var frameMax = 30;
+  var hot = { i: 0, v: 0 };
+  var cold = { i: 0, v: 0 };
+
+  var range = { min: 16, max: 42 };
+  var rangeSeeded = false;
+  var frameIndex = 0;
+
+  function blobFn(x, y, cx, cy, rx, ry, amp) {
+    var dx = (x - cx) / rx;
+    var dy = (y - cy) / ry;
+    return amp * Math.exp(-(dx * dx + dy * dy));
+  }
+
+  function noiseAt(x, y, seed) {
+    var n = Math.sin(x * 12.9898 + y * 78.233 + seed * 37.719) * 43758.5453;
+    return n - Math.floor(n);
+  }
+
+  /* wire format — protocol v1, documented in stream-contract.html */
+
+  var PROTO = {
+    version: 1,
+    headerBytes: 32,
+    flagFloat32: 1,
+    flagFault: 2,
+    invalidPixel: -32768
+  };
+
+  var demoTemps = new Float32Array(SENSOR_W * SENSOR_H);
+  var packetSeq = 0;
+  var lastPacket = { bytes: 0, seq: 0, fault: false };
+
+  /* ------------------------------------------------------------------ */
+  /* live socket — protocol v1, documented in /stream-contract.html     */
+  /*                                                                     */
+  /* A socket buffer and the built-in demo packet enter through the     */
+  /* same decoder: handleFrame() below is the single entry point.       */
+  /* ------------------------------------------------------------------ */
+
+  var sourceLabel = $('sourceLabel');
+  var sourceDot = $('sourceDot');
+  var viewSub = $('viewSub');
+
+  var live = { ws: null, connected: false, lastFrameAt: 0, reconnectTimer: null };
+
+  function wsUrl() {
+    return (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/thermal';
+  }
+
+  function setSourceMode(mode) {
+    if (mode === 'live') {
+      sourceLabel.textContent = 'Live';
+      sourceDot.classList.add('status__dot--live');
+      viewSub.textContent = 'Live MLX90640 stream — v1 binary frames over WebSocket.';
+    } else if (mode === 'connecting') {
+      sourceLabel.textContent = 'Connecting…';
+      sourceDot.classList.remove('status__dot--live');
+      viewSub.textContent = 'Connecting to the camera socket…';
+    } else {
+      sourceLabel.textContent = 'Demo field';
+      sourceDot.classList.remove('status__dot--live');
+      viewSub.textContent = 'Synthetic sensor, encoded as v1 binary frames — the same buffer a Pi socket would deliver.';
+    }
+  }
+
+  function processFrame(buffer) {
+    if (!handleFrame(buffer)) return false;
+    updateRange();
+    paintField();
+    drawFrame();
+    syncReadouts();
+    fieldReady = true;
+    framesInWindow++;
+    return true;
+  }
+
+  function handleControlMessage(text) {
+    var msg;
+    try { msg = JSON.parse(text); } catch (err) { return; }
+    if (!msg || !msg.type) return;
+    if (msg.type === 'status' && msg.state === 'fault') {
+      frameMeta.textContent = 'sensor fault' + (msg.detail ? ' · ' + msg.detail : '');
+    }
+    /* pong and anything else need no UI change */
+  }
+
+  function scheduleReconnect() {
+    if (live.reconnectTimer) return;
+    live.reconnectTimer = window.setTimeout(function () {
+      live.reconnectTimer = null;
+      connectLive();
+    }, 3000);
+  }
+
+  function connectLive() {
+    if (live.ws) return;
+    setSourceMode('connecting');
+    var ws;
+    try {
+      ws = new WebSocket(wsUrl());
+    } catch (err) {
+      setSourceMode('demo');
+      scheduleReconnect();
+      return;
+    }
+    live.ws = ws;
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = function () {
+      live.connected = true;
+      live.lastFrameAt = performance.now();
+      setSourceMode('live');
+    };
+    ws.onmessage = function (event) {
+      if (typeof event.data === 'string') {
+        handleControlMessage(event.data);
+        return;
+      }
+      live.lastFrameAt = performance.now();
+      if (!state.frozen) processFrame(event.data);
+    };
+    ws.onclose = function () {
+      live.ws = null;
+      live.connected = false;
+      setSourceMode('demo');
+      scheduleReconnect();
+    };
+    ws.onerror = function () { /* onclose follows */ };
+  }
+
+  function encodeFrame(frame) {
+    var cols = frame.cols;
+    var rows = frame.rows;
+    var useFloat = !!frame.float32;
+    var pixelBytes = useFloat ? 4 : 2;
+    var buffer = new ArrayBuffer(PROTO.headerBytes + cols * rows * pixelBytes);
+    var view = new DataView(buffer);
+
+    view.setUint8(0, PROTO.version);
+    view.setUint8(1, (useFloat ? PROTO.flagFloat32 : 0) | (frame.fault ? PROTO.flagFault : 0));
+    view.setUint16(2, PROTO.headerBytes, true);
+    view.setUint16(4, cols, true);
+    view.setUint16(6, rows, true);
+    view.setUint32(8, frame.seq >>> 0, true);
+    view.setFloat32(12, frame.ambientC, true);
+    view.setFloat32(16, frame.minC, true);
+    view.setFloat32(20, frame.maxC, true);
+    view.setUint32(24, frame.sensorMs >>> 0, true);
+    view.setUint16(28, Math.round((frame.emissivity || 0.95) * 1000), true);
+    view.setUint16(30, 0, true);
+
+    var offset = PROTO.headerBytes;
+    var temps = frame.temps;
+    for (var i = 0; i < temps.length; i++) {
+      if (useFloat) {
+        view.setFloat32(offset, temps[i], true);
+        offset += 4;
+      } else {
+        var scaled = Math.round(temps[i] * 100);
+        if (scaled < -32767) scaled = -32767;
+        if (scaled > 32767) scaled = 32767;
+        view.setInt16(offset, scaled, true);
+        offset += 2;
+      }
+    }
+    return buffer;
+  }
+
+  function decodeFrame(buffer) {
+    if (!buffer || buffer.byteLength < PROTO.headerBytes) return null;
+    var view = new DataView(buffer);
+    if (view.getUint8(0) !== PROTO.version) return null;
+
+    var flags = view.getUint8(1);
+    var headerBytes = view.getUint16(2, true);
+    var cols = view.getUint16(4, true);
+    var rows = view.getUint16(6, true);
+    if (headerBytes !== PROTO.headerBytes) return null;
+    if (cols !== SENSOR_W || rows !== SENSOR_H) return null;
+
+    var useFloat = (flags & PROTO.flagFloat32) !== 0;
+    var pixelBytes = useFloat ? 4 : 2;
+    if (buffer.byteLength < headerBytes + cols * rows * pixelBytes) return null;
+
+    var temps = new Float32Array(cols * rows);
+    var offset = headerBytes;
+    for (var i = 0; i < temps.length; i++) {
+      if (useFloat) {
+        temps[i] = view.getFloat32(offset, true);
+        offset += 4;
+      } else {
+        var raw = view.getInt16(offset, true);
+        offset += 2;
+        temps[i] = raw === PROTO.invalidPixel ? NaN : raw / 100;
+      }
+    }
+
+    return {
+      version: view.getUint8(0),
+      flags: flags,
+      cols: cols,
+      rows: rows,
+      seq: view.getUint32(8, true),
+      ambientC: view.getFloat32(12, true),
+      minC: view.getFloat32(16, true),
+      maxC: view.getFloat32(20, true),
+      sensorMs: view.getUint32(24, true),
+      emissivity: view.getUint16(28, true) / 1000,
+      fault: (flags & PROTO.flagFault) !== 0,
+      bytes: buffer.byteLength,
+      temps: temps
+    };
+  }
+
+  /* Stands in for the Pi: produce °C, then leave through the encoder. */
+  function buildDemoPacket(seconds) {
+    var drift = reduceMotion ? 0 : seconds;
+    var seed = frameIndex % 89;
+    var mn = Infinity;
+    var mx = -Infinity;
+
+    for (var y = 0; y < SENSOR_H; y++) {
+      var ny = (y + 0.5) / SENSOR_H;
+      for (var x = 0; x < SENSOR_W; x++) {
+        var nx = (x + 0.5) / SENSOR_W;
+        var v = 20.2 + (ny - 0.5) * 2.0;
+        v += blobFn(nx, ny, 0.30, 0.60, 0.30, 0.34, 6.4);
+        v += blobFn(nx, ny, 0.45, 0.76, 0.17, 0.19, 5.2);
+        v += blobFn(nx,
+                    ny,
+                    0.655 + Math.sin(drift * 0.5) * 0.014,
+                    0.40 + Math.cos(drift * 0.37) * 0.012,
+                    0.075, 0.105, 16.2);
+        v -= blobFn(nx, ny, 0.855, 0.30, 0.15, 0.16, 4.4);
+        v += (noiseAt(x, y, seed) - 0.5) * 0.85;
+        demoTemps[y * SENSOR_W + x] = v;
+        if (v < mn) mn = v;
+        if (v > mx) mx = v;
+      }
+    }
+
+    packetSeq = (packetSeq + 1) >>> 0;
+    return encodeFrame({
+      cols: SENSOR_W,
+      rows: SENSOR_H,
+      seq: packetSeq,
+      ambientC: 21.4,
+      minC: mn,
+      maxC: mx,
+      sensorMs: Math.round(seconds * 1000),
+      emissivity: 0.95,
+      temps: demoTemps
+    });
+  }
+
+  /* Single entry point: a socket delivers a buffer, this decodes it. */
+  function handleFrame(buffer) {
+    var frame = decodeFrame(buffer);
+    if (!frame) {
+      frameMeta.textContent = 'frame rejected';
+      return false;
+    }
+    field.set(frame.temps);
+    lastPacket.bytes = frame.bytes;
+    lastPacket.seq = frame.seq;
+    lastPacket.fault = frame.fault;
+    statsPass();
+    return true;
+  }
+
+  function statsPass() {
+    var mn = Infinity;
+    var mx = -Infinity;
+    var mnI = 0;
+    var mxI = 0;
+    for (var i = 0; i < field.length; i++) {
+      var v = field[i];
+      if (!isFinite(v)) continue;
+      if (v < mn) { mn = v; mnI = i; }
+      if (v > mx) { mx = v; mxI = i; }
+    }
+    if (!isFinite(mn) || !isFinite(mx)) return;
+
+    frameMin = mn;
+    frameMax = mx;
+    hot.i = mxI;
+    hot.v = mx;
+    cold.i = mnI;
+    cold.v = mn;
+  }
+
+  function updateRange() {
+    if (state.mode === 'auto') {
+      if (!rangeSeeded) {
+        range.min = frameMin;
+        range.max = frameMax;
+        rangeSeeded = true;
+      } else {
+        range.min += (frameMin - range.min) * 0.18;
+        range.max += (frameMax - range.max) * 0.18;
+      }
+      if (range.max - range.min < 3) range.max = range.min + 3;
+    } else {
+      range.min = state.minC;
+      range.max = state.maxC;
+    }
+  }
+
+  function paintField() {
+    var lut = lutFor(state.palette);
+    var span = Math.max(0.5, range.max - range.min);
+    var data = frameImage.data;
+    for (var i = 0; i < field.length; i++) {
+      var t = (field[i] - range.min) / span;
+      if (!(t > 0)) t = 0;
+      else if (t > 1) t = 1;
+      var idx = (t * 255) | 0;
+      data[i * 4] = lut[idx * 3];
+      data[i * 4 + 1] = lut[idx * 3 + 1];
+      data[i * 4 + 2] = lut[idx * 3 + 2];
+      data[i * 4 + 3] = 255;
+    }
+    sctx.putImageData(frameImage, 0, 0);
+  }
+
+  var FW = 1280;
+  var FH = 960;
+  var fieldReady = false;
+
+  function drawSpotRing(cellIndex, kind) {
+    var xi = cellIndex % SENSOR_W;
+    var yi = Math.floor(cellIndex / SENSOR_W);
+    var cx = ((xi + 0.5) / SENSOR_W) * FW;
+    var cy = ((yi + 0.5) / SENSOR_H) * FH;
+    var radius = Math.max(9, Math.round(FW * 0.014));
+    var tint = kind === 'hot' ? '#ff9d86' : '#9ec9f5';
+
+    ctx.save();
+    ctx.lineWidth = Math.max(2, radius * 0.16);
+    ctx.strokeStyle = 'rgba(6, 9, 10, 0.55)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius + 2, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = tint;
+    ctx.lineWidth = Math.max(1.5, radius * 0.11);
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(cx - radius * 1.7, cy);
+    ctx.lineTo(cx - radius * 1.15, cy);
+    ctx.moveTo(cx + radius * 1.15, cy);
+    ctx.lineTo(cx + radius * 1.7, cy);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawFrame() {
+    ctx.clearRect(0, 0, FW, FH);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(sensor, 0, 0, SENSOR_W, SENSOR_H, 0, 0, FW, FH);
+    drawSpotRing(hot.i, 'hot');
+    drawSpotRing(cold.i, 'cold');
+  }
+
+  function renderCurrentFrame() {
+    if (!fieldReady) return;
+    paintField();
+    drawFrame();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* readouts                                                            */
+  /* ------------------------------------------------------------------ */
+
+  function placeSpot(el, cellIndex) {
+    var xi = cellIndex % SENSOR_W;
+    var yi = Math.floor(cellIndex / SENSOR_W);
+    var x = (xi + 0.5) / SENSOR_W;
+    var y = (yi + 0.5) / SENSOR_H;
+    el.style.left = Math.min(96, Math.max(4, x * 100)).toFixed(2) + '%';
+    el.style.top = Math.min(86, Math.max(14, y * 100)).toFixed(2) + '%';
+    el.classList.toggle('spot--flip', x > 0.66);
+  }
+
+  function syncReadouts() {
+    var unit = unitText();
+    valCenter.textContent = fmtCell(field[CENTER_INDEX]);
+    valHot.textContent = fmtCell(hot.v);
+    valCold.textContent = fmtCell(cold.v);
+
+    spotHotVal.textContent = fmtCell(hot.v) + unit;
+    spotColdVal.textContent = fmtCell(cold.v) + unit;
+    placeSpot(spotHot, hot.i);
+    placeSpot(spotCold, cold.i);
+
+    spanValue.textContent = fmt(range.max - range.min) + ' ' + unit;
+    frameRange.textContent = fmt(frameMin) + '–' + fmt(frameMax) + ' ' + unit;
+
+    streamMeta.textContent = paletteName() + ' · ' +
+      (state.mode === 'auto' ? 'auto range' : 'manual range') + ' · ' +
+      fmt(range.min) + '–' + fmt(range.max) + ' ' + unit + ' · center ' + fmtCell(field[CENTER_INDEX]) + ' ' + unit;
+
+    if (state.mode === 'auto') {
+      minSlider.value = String(range.min);
+      maxSlider.value = String(range.max);
+      if (document.activeElement !== minInput) minInput.value = fmt(range.min);
+      if (document.activeElement !== maxInput) maxInput.value = fmt(range.max);
+    }
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* canvas sizing                                                       */
+  /* ------------------------------------------------------------------ */
+
+  function fitCanvas() {
+    var rect = canvas.getBoundingClientRect();
+    if (rect.width < 2) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = Math.min(1440, Math.round(rect.width * dpr));
+    var h = Math.round(w * 0.75);
+    if (w === FW && h === FH) return;
+    FW = w;
+    FH = h;
+    canvas.width = w;
+    canvas.height = h;
+    drawFrame();
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* render loop                                                         */
+  /* ------------------------------------------------------------------ */
+
+  var startedAt = performance.now();
+  var lastSample = 0;
+  var framesInWindow = 0;
+  var fpsWindowStart = 0;
+  var FRAME_MS = 1000 / 12;
+
+  function tick(now) {
+    if (!state.frozen && !live.connected && now - lastSample >= FRAME_MS) {
+      lastSample = now;
+      frameIndex++;
+      processFrame(buildDemoPacket((now - startedAt) / 1000));
+    }
+
+    if (!fpsWindowStart) fpsWindowStart = now;
+    if (now - fpsWindowStart >= 1000) {
+      var fps = framesInWindow * 1000 / (now - fpsWindowStart);
+      fpsReadout.textContent = fps.toFixed(1) + ' fps';
+      if (live.connected && now - live.lastFrameAt > 2000) {
+        frameMeta.textContent = 'stale';
+      } else if (lastPacket.fault) {
+        frameMeta.textContent = (lastPacket.bytes
+          ? lastPacket.bytes + ' B · seq ' + lastPacket.seq + ' · '
+          : '') + 'fault';
+      } else {
+        frameMeta.textContent = lastPacket.bytes
+          ? lastPacket.bytes + ' B · seq ' + lastPacket.seq
+          : '—';
+      }
+      framesInWindow = 0;
+      fpsWindowStart = now;
+    }
+
+    window.requestAnimationFrame(tick);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* palette controls                                                    */
+  /* ------------------------------------------------------------------ */
+
+  function buildPaletteButtons() {
+    paletteGrid.innerHTML = PALETTES.map(function (p) {
+      return '<button type="button" class="swatch" data-palette="' + p.id + '" aria-pressed="' +
+        (p.id === state.palette) + '">' +
+        '<span class="swatch__bar" style="background-image:' + gradientCss(p.stops) + '"></span>' +
+        '<span class="swatch__label"><span>' + p.name + '</span>' + icon('check') + '</span>' +
+        '</button>';
+    }).join('');
+  }
+
+  function selectPalette(id) {
+    state.palette = id;
+    var buttons = paletteGrid.querySelectorAll('.swatch');
+    for (var i = 0; i < buttons.length; i++) {
+      buttons[i].setAttribute('aria-pressed', String(buttons[i].getAttribute('data-palette') === id));
+    }
+    renderCurrentFrame();
+    syncReadouts();
+    announce('Palette ' + paletteName());
+  }
+
+  paletteGrid.addEventListener('click', function (event) {
+    var btn = event.target.closest('.swatch');
+    if (!btn) return;
+    selectPalette(btn.getAttribute('data-palette'));
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* range controls                                                      */
+  /* ------------------------------------------------------------------ */
+
+  function rangeModeButtons() {
+    return rangeMode.querySelectorAll('[data-mode]');
+  }
+
+  function unitButtons() {
+    return unitGroup.querySelectorAll('[data-unit]');
+  }
+
+  function setUnitLabels() {
+    for (var i = 0; i < unitSuffixes.length; i++) unitSuffixes[i].textContent = unitText();
+  }
+
+  function hideRangeError() {
+    rangeError.hidden = true;
+    rangeError.textContent = '';
+    minInput.removeAttribute('aria-invalid');
+    maxInput.removeAttribute('aria-invalid');
+  }
+
+  function showRangeError(message, which) {
+    var input = which === 'min' ? minInput : maxInput;
+    rangeError.textContent = message;
+    rangeError.hidden = false;
+    input.setAttribute('aria-invalid', 'true');
+  }
+
+  function syncRangeUI() {
+    var auto = state.mode === 'auto';
+    var modes = rangeModeButtons();
+    for (var i = 0; i < modes.length; i++) {
+      modes[i].setAttribute('aria-pressed', String(modes[i].getAttribute('data-mode') === state.mode));
+    }
+
+    minSlider.disabled = auto;
+    maxSlider.disabled = auto;
+    minInput.disabled = auto;
+    maxInput.disabled = auto;
+
+    var lo = auto ? range.min : state.minC;
+    var hi = auto ? range.max : state.maxC;
+
+    minSlider.value = String(lo);
+    maxSlider.value = String(hi);
+    if (document.activeElement !== minInput) minInput.value = fmt(lo);
+    if (document.activeElement !== maxInput) maxInput.value = fmt(hi);
+
+    setUnitLabels();
+
+    var units = unitButtons();
+    for (var u = 0; u < units.length; u++) {
+      units[u].setAttribute('aria-pressed', String(units[u].getAttribute('data-unit') === state.unit));
+    }
+
+    rangeHint.textContent = auto
+      ? 'Auto follows the hottest and coldest pixel in the frame.'
+      : 'Manual limits fix the color scale. Type a value or drag a slider.';
+
+    spanValue.textContent = fmt(range.max - range.min) + ' ' + unitText();
+    frameRange.textContent = fmt(frameMin) + '–' + fmt(frameMax) + ' ' + unitText();
+  }
+
+  function selectMode(mode) {
+    state.mode = mode;
+    if (mode === 'manual') {
+      state.minC = round1(range.min);
+      state.maxC = round1(range.max);
+    } else {
+      rangeSeeded = false;
+    }
+    hideRangeError();
+    syncRangeUI();
+    syncReadouts();
+    announce(mode === 'auto' ? 'Range mode auto' : 'Range mode manual');
+  }
+
+  rangeMode.addEventListener('click', function (event) {
+    var btn = event.target.closest('[data-mode]');
+    if (!btn) return;
+    var mode = btn.getAttribute('data-mode');
+    if (mode !== state.mode) selectMode(mode);
+  });
+
+  unitGroup.addEventListener('click', function (event) {
+    var btn = event.target.closest('[data-unit]');
+    if (!btn) return;
+    var unit = btn.getAttribute('data-unit');
+    if (unit === state.unit) return;
+    state.unit = unit;
+    hideRangeError();
+    syncRangeUI();
+    syncReadouts();
+    announce('Temperature in degrees ' + (unit === 'C' ? 'Celsius' : 'Fahrenheit'));
+  });
+
+  minSlider.addEventListener('input', function () {
+    if (state.mode !== 'manual') return;
+    var value = Number(minSlider.value);
+    state.minC = Math.min(round1(value), round1(state.maxC - 0.5));
+    minSlider.value = String(state.minC);
+    hideRangeError();
+    syncRangeUI();
+    syncReadouts();
+  });
+
+  maxSlider.addEventListener('input', function () {
+    if (state.mode !== 'manual') return;
+    var value = Number(maxSlider.value);
+    state.maxC = Math.max(round1(value), round1(state.minC + 0.5));
+    maxSlider.value = String(state.maxC);
+    hideRangeError();
+    syncRangeUI();
+    syncReadouts();
+  });
+
+  function commitRangeInput(which) {
+    var input = which === 'min' ? minInput : maxInput;
+    var raw = String(input.value).trim().replace(',', '.');
+    var num = Number(raw);
+    var boundLo = toDisp(-20);
+    var boundHi = toDisp(120);
+    var message = '';
+
+    if (raw === '' || !isFinite(num)) {
+      message = 'Enter a number in ' + unitText() + ', for example ' + fmt(which === 'min' ? state.minC : state.maxC) + '.';
+    } else if (num < Math.min(boundLo, boundHi) || num > Math.max(boundLo, boundHi)) {
+      message = 'Keep it between ' + Math.round(Math.min(boundLo, boundHi)) + ' and ' +
+        Math.round(Math.max(boundLo, boundHi)) + ' ' + unitText() + '.';
+    } else {
+      var celsius = round1(toCelsius(num));
+      if (which === 'min' && celsius >= state.maxC - 0.4) {
+        message = 'The minimum must sit at least 0.5' + unitText() + ' below the maximum (' +
+          fmt(state.maxC) + unitText() + ').';
+      } else if (which === 'max' && celsius <= state.minC + 0.4) {
+        message = 'The maximum must sit at least 0.5' + unitText() + ' above the minimum (' +
+          fmt(state.minC) + unitText() + ').';
+      } else if (which === 'min') {
+        state.minC = celsius;
+      } else {
+        state.maxC = celsius;
+      }
+    }
+
+    if (message) {
+      showRangeError(message, which);
+      input.value = fmt(which === 'min' ? state.minC : state.maxC);
+    } else {
+      hideRangeError();
+      input.value = fmt(which === 'min' ? state.minC : state.maxC);
+    }
+
+    syncRangeUI();
+    syncReadouts();
+  }
+
+  [minInput, maxInput].forEach(function (input, index) {
+    var which = index === 0 ? 'min' : 'max';
+    input.addEventListener('blur', function () { commitRangeInput(which); });
+    input.addEventListener('keydown', function (event) {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        commitRangeInput(which);
+      }
+    });
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* freeze                                                              */
+  /* ------------------------------------------------------------------ */
+
+  freezeBtn.addEventListener('click', function () {
+    state.frozen = !state.frozen;
+    freezeBtn.setAttribute('aria-pressed', String(state.frozen));
+    freezeBtn.innerHTML = icon(state.frozen ? 'play' : 'pause') +
+      '<span>' + (state.frozen ? 'Resume' : 'Freeze') + '</span>';
+    freezeBadge.hidden = !state.frozen;
+    announce(state.frozen ? 'Live view frozen' : 'Live view running');
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* snapshot                                                            */
+  /* ------------------------------------------------------------------ */
+
+  var snapNoteTimer = null;
+
+  function showSnapNote(message) {
+    snapNote.textContent = message;
+    snapNote.hidden = false;
+    if (snapNoteTimer) window.clearTimeout(snapNoteTimer);
+    snapNoteTimer = window.setTimeout(function () {
+      snapNote.hidden = true;
+      snapNote.textContent = '';
+    }, 2600);
+  }
+
+  function roundRectPath(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.lineTo(x + w - r, y);
+    c.arcTo(x + w, y, x + w, y + r, r);
+    c.lineTo(x + w, y + h - r);
+    c.arcTo(x + w, y + h, x + w - r, y + h, r);
+    c.lineTo(x + r, y + h);
+    c.arcTo(x, y + h, x, y + h - r, r);
+    c.lineTo(x, y + r);
+    c.arcTo(x, y, x + r, y, r);
+    c.closePath();
+  }
+
+  function drawSpotTag(c, cellIndex, value, kind) {
+    var w = c.canvas.width;
+    var h = c.canvas.height;
+    var xi = cellIndex % SENSOR_W;
+    var yi = Math.floor(cellIndex / SENSOR_W);
+    var cx = ((xi + 0.5) / SENSOR_W) * w;
+    var cy = ((yi + 0.5) / SENSOR_H) * h;
+    var scale = Math.max(1, w / 1200);
+    var tint = kind === 'hot' ? '#ff9d86' : '#9ec9f5';
+    var text = (kind === 'hot' ? 'HOT ' : 'COLD ') + fmt(value) + unitText();
+    var fontSize = Math.round(17 * scale);
+    var padX = Math.round(9 * scale);
+    var tagH = Math.round(29 * scale);
+    var offset = Math.max(9, Math.round(w * 0.014)) + Math.round(12 * scale);
+    var flip = (xi + 0.5) / SENSOR_W > 0.66;
+
+    c.save();
+    c.font = '500 ' + fontSize + 'px "IBM Plex Mono", ui-monospace, monospace';
+    var textWidth = c.measureText(text).width;
+    var boxW = textWidth + padX * 2;
+    var bx = flip ? cx - offset - boxW : cx + offset;
+    var by = cy - tagH / 2;
+
+    if (bx < 10) bx = 10;
+    if (bx + boxW > w - 10) bx = w - 10 - boxW;
+    if (by < 10) by = 10;
+    if (by + tagH > h - 10) by = h - 10 - tagH;
+
+    roundRectPath(c, bx, by, boxW, tagH, Math.round(6 * scale));
+    c.fillStyle = 'rgba(6, 9, 10, 0.88)';
+    c.fill();
+    c.strokeStyle = tint;
+    c.lineWidth = Math.max(1.5, Math.round(1.6 * scale));
+    c.stroke();
+
+    c.fillStyle = '#f2f6f6';
+    c.textBaseline = 'middle';
+    c.fillText(text, bx + padX, by + tagH / 2 + 1);
+    c.restore();
+  }
+
+  function snapshotFileName(now) {
+    return 'thermal-snapshot-' + now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate()) +
+      '-' + pad2(now.getHours()) + pad2(now.getMinutes()) + pad2(now.getSeconds()) + '.png';
+  }
+
+  function triggerDownload(href, fileName) {
+    var link = document.createElement('a');
+    link.href = href;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }
+
+  function saveSnapshot() {
+    if (!fieldReady) return;
+
+    var now = new Date();
+    var name = snapshotFileName(now);
+    var shortTime = pad2(now.getHours()) + ':' + pad2(now.getMinutes());
+
+    var out = document.createElement('canvas');
+    out.width = FW;
+    out.height = FH;
+    var octx = out.getContext('2d');
+    octx.drawImage(canvas, 0, 0);
+    drawSpotTag(octx, hot.i, hot.v, 'hot');
+    drawSpotTag(octx, cold.i, cold.v, 'cold');
+
+    function deliver(blob) {
+      if (!blob) {
+        showSnapNote('Could not save the frame. Try again.');
+        return;
+      }
+      var url = URL.createObjectURL(blob);
+      triggerDownload(url, name);
+      window.setTimeout(function () { URL.revokeObjectURL(url); }, 5000);
+      showSnapNote('Saved PNG · ' + shortTime);
+      announce('Snapshot saved as ' + name);
+    }
+
+    if (out.toBlob) {
+      out.toBlob(deliver, 'image/png');
+      return;
+    }
+
+    try {
+      triggerDownload(out.toDataURL('image/png'), name);
+      showSnapNote('Saved PNG · ' + shortTime);
+      announce('Snapshot saved as ' + name);
+    } catch (err) {
+      showSnapNote('Could not save the frame. Try again.');
+    }
+  }
+
+  snapBtn.addEventListener('click', saveSnapshot);
+
+  /* ------------------------------------------------------------------ */
+  /* recording                                                           */
+  /* ------------------------------------------------------------------ */
+
+  var recorder = null;
+  var captureStream = null;
+  var chunks = [];
+  var recStartedAt = 0;
+  var recTimer = null;
+
+  function pickMime() {
+    if (!window.MediaRecorder) return '';
+    var candidates = [
+      'video/webm;codecs=vp9',
+      'video/webm;codecs=vp8',
+      'video/webm',
+      'video/mp4;codecs=avc1.42E01E',
+      'video/mp4'
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      try {
+        if (MediaRecorder.isTypeSupported(candidates[i])) return candidates[i];
+      } catch (err) { /* keep looking */ }
+    }
+    return '';
+  }
+
+  var mime = pickMime();
+  var canRecord = !!(canvas.captureStream && window.MediaRecorder);
+
+  function showNotice(message) {
+    recNotice.textContent = message;
+    recNotice.hidden = false;
+  }
+
+  function clearNotice() {
+    recNotice.textContent = '';
+    recNotice.hidden = true;
+  }
+
+  function updateRecUi() {
+    var recording = state.recording;
+    var unavailable = !canRecord || state.stopping;
+
+    recBtn.classList.toggle('btn--primary', !recording);
+    recBtn.classList.toggle('btn--rec', recording);
+    recBtn.innerHTML = icon(recording ? 'stop' : 'record') +
+      '<span>' + (recording ? 'Stop and save' : 'Record') + '</span>';
+    recBtn.disabled = unavailable;
+
+    headRecBtn.classList.toggle('btn--rec-quiet', recording);
+    headRecBtn.innerHTML = icon(recording ? 'stop' : 'record') +
+      '<span>' + (recording ? 'Stop' : 'Record') + '</span>';
+    headRecBtn.disabled = unavailable;
+
+    recBadge.hidden = !recording;
+    headRecTime.hidden = !recording;
+
+    if (recording) {
+      recClock.classList.add('is-live');
+      recStatus.textContent = 'Recording';
+    } else {
+      recClock.classList.remove('is-live');
+      recClock.textContent = '00:00';
+      recTime.textContent = '00:00';
+      headRecTime.textContent = '00:00';
+      recStatus.textContent = canRecord ? 'Idle' : 'Unavailable';
+    }
+  }
+
+  function startRecording() {
+    if (!canRecord || state.recording || state.stopping) return;
+    clearNotice();
+
+    try {
+      captureStream = canvas.captureStream(12);
+    } catch (err) {
+      showNotice('The live view could not be captured: ' + (err && err.message ? err.message : 'unknown error') + '.');
+      return;
+    }
+
+    chunks = [];
+
+    try {
+      recorder = mime
+        ? new MediaRecorder(captureStream, { mimeType: mime })
+        : new MediaRecorder(captureStream);
+    } catch (err) {
+      captureStream = null;
+      showNotice('This browser refused to start a recording. Try Chrome or Edge.');
+      return;
+    }
+
+    recorder.ondataavailable = function (event) {
+      if (event.data && event.data.size) chunks.push(event.data);
+    };
+    recorder.onerror = function (event) {
+      var detail = event && event.error && event.error.message ? event.error.message : 'unknown error';
+      showNotice('Recording stopped: ' + detail + '.');
+      if (recorder && recorder.state !== 'inactive') {
+        try { recorder.stop(); } catch (err) { /* ignore */ }
+      }
+    };
+    recorder.onstop = finishRecording;
+
+    try {
+      recorder.start(1000);
+    } catch (err) {
+      recorder = null;
+      captureStream = null;
+      showNotice('This browser refused to start a recording. Try Chrome or Edge.');
+      return;
+    }
+
+    state.recording = true;
+    recStartedAt = performance.now();
+    updateRecUi();
+    recTimer = window.setInterval(function () {
+      var seconds = (performance.now() - recStartedAt) / 1000;
+      recClock.textContent = mmss(seconds);
+      recTime.textContent = mmss(seconds);
+      headRecTime.textContent = mmss(seconds);
+    }, 250);
+    announce('Recording started');
+  }
+
+  function stopRecording() {
+    if (!state.recording || state.stopping) return;
+    state.stopping = true;
+    state.recording = false;
+    if (recTimer) {
+      window.clearInterval(recTimer);
+      recTimer = null;
+    }
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.stop(); } catch (err) { finishRecording(); return; }
+    } else {
+      finishRecording();
+      return;
+    }
+    updateRecUi();
+  }
+
+  function finishRecording() {
+    var durationMs = performance.now() - recStartedAt;
+    if (recTimer) {
+      window.clearInterval(recTimer);
+      recTimer = null;
+    }
+
+    var parts = chunks;
+    chunks = [];
+    recorder = null;
+    captureStream = null;
+    state.recording = false;
+    state.stopping = false;
+    updateRecUi();
+
+    if (!parts.length) {
+      showNotice('The recording captured no data. Try a longer take.');
+      return;
+    }
+
+    var type = mime || 'video/webm';
+    var blob = new Blob(parts, { type: type });
+    var ext = type.indexOf('mp4') !== -1 ? 'mp4' : 'webm';
+    var now = new Date();
+    clipCounter += 1;
+
+    var session = {
+      id: 'clip-' + clipCounter + '-' + now.getTime(),
+      name: 'Clip ' + pad2(clipCounter),
+      duration: durationMs,
+      size: blob.size,
+      recordedAt: now,
+      ext: ext,
+      fileName: 'thermal-' + now.getFullYear() + pad2(now.getMonth() + 1) + pad2(now.getDate()) +
+        '-' + pad2(now.getHours()) + pad2(now.getMinutes()) + pad2(now.getSeconds()) + '.' + ext,
+      url: URL.createObjectURL(blob)
+    };
+
+    sessions.push(session);
+    renderSessions();
+    announce(session.name + ' saved, ' + mmss(durationMs / 1000) + ' long');
+  }
+
+  function toggleRecording() {
+    if (state.recording) stopRecording();
+    else startRecording();
+  }
+
+  recBtn.addEventListener('click', toggleRecording);
+  headRecBtn.addEventListener('click', toggleRecording);
+
+  /* ------------------------------------------------------------------ */
+  /* session list                                                        */
+  /* ------------------------------------------------------------------ */
+
+  function renderSessions() {
+    sessionEmpty.hidden = sessions.length > 0;
+    if (!sessions.length) {
+      sessionList.innerHTML = '';
+      return;
+    }
+    sessionList.innerHTML = sessions.map(function (s) {
+      return '<li class="session">' +
+        '<div class="od-stack session__info" style="--od-gap:2px">' +
+          '<span class="session__name od-truncate">' + escapeHtml(s.name) + '</span>' +
+          '<span class="session__meta od-truncate">' + mmss(s.duration / 1000) + ' · ' +
+            bytesText(s.size) + ' · ' + timeOf(s.recordedAt) + '</span>' +
+        '</div>' +
+        '<div class="od-row" style="--od-gap:6px">' +
+          '<button type="button" class="icon-btn" data-action="download" data-id="' + s.id + '" ' +
+            'aria-label="Download ' + escapeHtml(s.name) + '">' + icon('download') + '</button>' +
+          '<button type="button" class="icon-btn icon-btn--danger" data-action="delete" data-id="' + s.id + '" ' +
+            'aria-label="Delete ' + escapeHtml(s.name) + '">' + icon('trash') + '</button>' +
+        '</div>' +
+        '</li>';
+    }).join('');
+  }
+
+  function downloadSession(id) {
+    var session = sessions.filter(function (s) { return s.id === id; })[0];
+    if (!session) return;
+    var link = document.createElement('a');
+    link.href = session.url;
+    link.download = session.fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    announce('Downloading ' + session.name);
+  }
+
+  function requestDelete(id) {
+    var session = sessions.filter(function (s) { return s.id === id; })[0];
+    if (!session) return;
+    pendingDeleteId = id;
+    confirmTitle.textContent = 'Delete ' + session.name + '?';
+    confirmBody.textContent = 'This removes the ' + mmss(session.duration / 1000) +
+      ' recording from this session. Copies you already downloaded are not affected.';
+    confirmDialog.showModal();
+    confirmDelete.focus();
+  }
+
+  sessionList.addEventListener('click', function (event) {
+    var btn = event.target.closest('[data-action]');
+    if (!btn) return;
+    var id = btn.getAttribute('data-id');
+    if (btn.getAttribute('data-action') === 'download') downloadSession(id);
+    else requestDelete(id);
+  });
+
+  confirmCancel.addEventListener('click', function () {
+    confirmDialog.close();
+  });
+
+  confirmDelete.addEventListener('click', function () {
+    var id = pendingDeleteId;
+    pendingDeleteId = null;
+    confirmDialog.close();
+
+    var index = -1;
+    for (var i = 0; i < sessions.length; i++) {
+      if (sessions[i].id === id) { index = i; break; }
+    }
+    if (index === -1) return;
+
+    URL.revokeObjectURL(sessions[index].url);
+    sessions.splice(index, 1);
+    renderSessions();
+    announce('Clip deleted');
+
+    if (sessions.length) {
+      var next = sessions[Math.min(index, sessions.length - 1)];
+      var nextBtn = sessionList.querySelector('[data-action="delete"][data-id="' + next.id + '"]');
+      if (nextBtn) { nextBtn.focus(); return; }
+    }
+    recBtn.focus();
+  });
+
+  confirmDialog.addEventListener('close', function () {
+    if (!pendingDeleteId) return;
+    var trigger = sessionList.querySelector('[data-action="delete"][data-id="' + pendingDeleteId + '"]');
+    pendingDeleteId = null;
+    if (trigger) trigger.focus();
+    else recBtn.focus();
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* clock                                                               */
+  /* ------------------------------------------------------------------ */
+
+  window.setInterval(function () {
+    sessionClock.textContent = clockText((performance.now() - startedAt) / 1000);
+  }, 1000);
+
+  /* ------------------------------------------------------------------ */
+  /* startup                                                             */
+  /* ------------------------------------------------------------------ */
+
+  buildPaletteButtons();
+  renderSessions();
+  syncRangeUI();
+  updateRecUi();
+  setUnitLabels();
+
+  if (!canRecord) {
+    showNotice('This browser cannot capture the canvas, so clips cannot be recorded here. Chrome, Edge or Safari 14.1 and newer work.');
+  } else if (!mime) {
+    showNotice('Recording will use the browser default codec; clips may not play in every player.');
+  }
+
+  fitCanvas();
+  window.addEventListener('resize', fitCanvas);
+  if (window.ResizeObserver) {
+    var stage = canvas.parentElement;
+    var resizeObserver = new ResizeObserver(function () { fitCanvas(); });
+    resizeObserver.observe(stage);
+  }
+
+  connectLive();
+  window.requestAnimationFrame(tick);
+})();
+</script>
 </body>
 </html>

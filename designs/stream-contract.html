@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Thermal Camera Stream Contract v1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0b0d0e;
+  --paper: #111517;
+  --paper-2: #151b1d;
+  --line: #242b2e;
+  --line-2: #35403f;
+  --ink: #e7ebec;
+  --ink-2: #aeb8bc;
+  --ink-3: #8b9599;
+  --accent: #8fd8cf;
+  --ui: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { color-scheme: dark; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 16px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+.doc {
+  max-width: 74ch;
+  margin: 0 auto;
+  padding: 56px 20px 104px;
+}
+
+a { color: var(--accent); text-underline-offset: 3px; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+code, kbd, samp { font-family: var(--mono); font-size: 0.9em; }
+
+/* ---------- header ---------- */
+
+.masthead { border-bottom: 1px solid var(--line); padding-bottom: 28px; }
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0;
+}
+
+h1 {
+  margin: 14px 0 0;
+  font-size: clamp(30px, 6vw, 42px);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+}
+
+.lede {
+  margin: 16px 0 0;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  max-width: 66ch;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 20px;
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: var(--ink-3);
+}
+.facts strong { color: var(--ink); font-weight: 500; }
+
+/* ---------- contents ---------- */
+
+.toc { margin: 32px 0 0; }
+
+.toc__label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin: 0 0 10px;
+}
+
+.toc ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 6px;
+  counter-reset: toc;
+}
+.toc li { counter-increment: toc; display: flex; gap: 10px; }
+.toc li::before {
+  content: counter(toc, decimal);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+  padding-top: 3px;
+  min-width: 1.6em;
+  text-align: right;
+}
+.toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--line-2); }
+.toc a:hover { border-bottom-color: var(--accent); }
+
+/* ---------- body ---------- */
+
+section { margin-top: 44px; }
+
+h2 {
+  margin: 0 0 14px;
+  font-size: 22px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+h3 {
+  margin: 26px 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+p { margin: 0 0 14px; }
+p:last-child { margin-bottom: 0; }
+
+ul, ol { margin: 0 0 14px; padding-left: 20px; }
+li { margin-bottom: 7px; }
+li:last-child { margin-bottom: 0; }
+
+.term { font-family: var(--mono); font-size: 0.92em; color: var(--ink); }
+
+/* ---------- tables ---------- */
+
+.table-wrap {
+  overflow-x: auto;
+  margin: 16px 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+caption {
+  caption-side: top;
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 0 0 8px;
+}
+
+th, td {
+  text-align: left;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+thead th {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+  color: var(--ink-3);
+  background: var(--paper-2);
+  white-space: nowrap;
+}
+tbody tr:last-child td { border-bottom: 0; }
+td code { color: var(--ink); white-space: nowrap; }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ---------- code ---------- */
+
+pre {
+  margin: 16px 0;
+  padding: 16px;
+  overflow-x: auto;
+  background: #0d1214;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.6;
+  color: #dfe6e6;
+  tab-size: 2;
+}
+
+/* ---------- note ---------- */
+
+.note {
+  margin: 18px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--line-2);
+  border-radius: 8px;
+  background: var(--paper);
+}
+.note__label {
+  margin: 0 0 6px;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.note p:last-child { margin-bottom: 0; }
+
+/* ---------- footer ---------- */
+
+.doc-foot {
+  margin-top: 56px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+
+@media (max-width: 520px) {
+  .doc { padding: 40px 16px 80px; }
+  body { font-size: 16px; }
+  th, td { padding: 8px 10px; }
+}
+
+@media print {
+  :root {
+    --bg: #ffffff;
+    --paper: #ffffff;
+    --paper-2: #ffffff;
+    --line: #cfcfcf;
+    --line-2: #b4b4b4;
+    --ink: #111111;
+    --ink-2: #333333;
+    --ink-3: #555555;
+    --accent: #111111;
+  }
+  @page { margin: 18mm 16mm; }
+  body { background: #fff; color: #111; font-size: 10.5pt; line-height: 1.55; }
+  .doc { max-width: none; padding: 0; }
+  .toc { display: none; }
+  h1 { font-size: 22pt; }
+  h2 { font-size: 14pt; break-after: avoid; text-decoration: none; }
+  h3 { break-after: avoid; }
+  table, pre, .note { break-inside: avoid; }
+  thead { display: table-header-group; }
+  a { color: inherit; text-decoration: none; }
+  .table-wrap { overflow: visible; border-color: #bbb; }
+}
+</style>
+</head>
+<body>
+<article class="doc">
+
+  <header class="masthead">
+    <p class="eyebrow">Protocol contract · version 1 · draft for implementation</p>
+    <h1>Thermal Camera Stream Contract</h1>
+    <p class="lede">
+      How a Raspberry Pi delivers a thermal sensor frame to the browser client, what the browser is
+      responsible for, and what must never travel over the wire.
+    </p>
+    <ul class="facts">
+      <li>Sensor <strong>MLX90640, 32 × 24</strong></li>
+      <li>Transport <strong>binary WebSocket</strong></li>
+      <li>Frame <strong>1,568 bytes</strong></li>
+      <li>Client <strong>index.html</strong></li>
+    </ul>
+
+    <nav class="toc" aria-label="Contents">
+      <p class="toc__label">Contents</p>
+      <ol>
+        <li><a href="#scope">Scope and responsibilities</a></li>
+        <li><a href="#transport">Transport</a></li>
+        <li><a href="#frame">Frame layout</a></li>
+        <li><a href="#units">Units, limits, missing readings</a></li>
+        <li><a href="#exclusions">What the stream must not carry</a></li>
+        <li><a href="#calibration">Calibration stays on the Pi</a></li>
+        <li><a href="#faults">Faults, drops, reconnects</a></li>
+        <li><a href="#control">Control channel</a></li>
+        <li><a href="#recording">Recording and replay</a></li>
+        <li><a href="#versioning">Versioning rules</a></li>
+        <li><a href="#reference">Reference encoder</a></li>
+        <li><a href="#assumptions">Assumptions and open questions</a></li>
+      </ol>
+    </nav>
+  </header>
+
+  <section id="scope">
+    <h2>1 · Scope and responsibilities</h2>
+    <p>
+      This document defines protocol version 1 between a Raspberry Pi that reads a thermal sensor and
+      a browser client that displays it. The client is <span class="term">index.html</span> in this
+      project; its decoder is the single entry point for sensor data, and the built-in demo encoder
+      produces frames in exactly the layout described here.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <caption>Responsibility split</caption>
+        <thead>
+          <tr><th>Job</th><th>Runs on</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Read sensor, apply EEPROM calibration and bad-pixel correction</td><td>Pi</td><td>Constants are sensor-specific and belong nowhere else</td></tr>
+          <tr><td>Apply emissivity and reflected temperature</td><td>Pi</td><td>The client should receive physically meaningful °C, not raw counts</td></tr>
+          <tr><td>Encode and send the frame</td><td>Pi</td><td>Fixed 32-byte header, fixed payload</td></tr>
+          <tr><td>Decode the frame</td><td>Browser</td><td>One decoder, one format, no per-viewer server work</td></tr>
+          <tr><td>Palette, range, unit, overlays, smoothing</td><td>Browser</td><td>These are view state and change without a round trip</td></tr>
+          <tr><td>Recording, snapshots, downloads</td><td>Browser</td><td>Output belongs with the viewer</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="transport">
+    <h2>2 · Transport</h2>
+    <p>
+      One WebSocket connection per viewer. Each thermal frame is one binary message; the client sets
+      <code>binaryType = 'arraybuffer'</code> and hands each message straight to the decoder. Text
+      messages are reserved for control and status (section 8) and never carry pixel data.
+    </p>
+    <ul>
+      <li>Message order is meaningful: sequence numbers increase by one per frame and wrap at 2³².</li>
+      <li>Frames are self-contained. There is no delta encoding, no keyframe, no dependency on the previous message.</li>
+      <li>When the socket is congested, drop the newest frame rather than queue it. A viewer that can only render 8 fps gains nothing from a backlog of 40 stale frames.</li>
+      <li>Compression is disabled on the socket. The payload is 1,568 bytes of near-incompressible integers; negotiation cost exceeds any saving.</li>
+      <li>Serving over plain <code>ws://</code> is acceptable on a trusted LAN. Use <code>wss://</code> whenever the page itself is served over TLS, or the browser blocks the connection as mixed content.</li>
+    </ul>
+  </section>
+
+  <section id="frame">
+    <h2>3 · Frame layout</h2>
+    <p>
+      Every message is a 32-byte header followed by <code>columns × rows</code> pixel values, all
+      integers little-endian, no padding and no alignment gaps.
+    </p>
+
+    <div class="table-wrap">
+      <table>
+        <caption>Header, 32 bytes</caption>
+        <thead>
+          <tr><th class="num">Offset</th><th class="num">Size</th><th>Type</th><th>Field</th><th>Notes</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">0</td><td class="num">1</td><td><code>uint8</code></td><td><code>version</code></td><td>Protocol version. <code>1</code> here. Reject anything else.</td></tr>
+          <tr><td class="num">1</td><td class="num">1</td><td><code>uint8</code></td><td><code>flags</code></td><td>bit 0 payload is float32 · bit 1 sensor fault present · bits 2–7 reserved, ignore them</td></tr>
+          <tr><td class="num">2</td><td class="num">2</td><td><code>uint16</code></td><td><code>headerBytes</code></td><td>Always <code>32</code> in v1. Lets a later version lengthen the header without breaking parsers.</td></tr>
+          <tr><td class="num">4</td><td class="num">2</td><td><code>uint16</code></td><td><code>columns</code></td><td><code>32</code> for the MLX90640</td></tr>
+          <tr><td class="num">6</td><td class="num">2</td><td><code>uint16</code></td><td><code>rows</code></td><td><code>24</code></td></tr>
+          <tr><td class="num">8</td><td class="num">4</td><td><code>uint32</code></td><td><code>sequence</code></td><td>+1 per frame, wraps at 2³². A gap means dropped frames.</td></tr>
+          <tr><td class="num">12</td><td class="num">4</td><td><code>float32</code></td><td><code>ambientC</code></td><td>Housing or ambient reference, °C</td></tr>
+          <tr><td class="num">16</td><td class="num">4</td><td><code>float32</code></td><td><code>frameMinC</code></td><td>Coldest valid pixel in this frame, °C</td></tr>
+          <tr><td class="num">20</td><td class="num">4</td><td><code>float32</code></td><td><code>frameMaxC</code></td><td>Hottest valid pixel in this frame, °C</td></tr>
+          <tr><td class="num">24</td><td class="num">4</td><td><code>uint32</code></td><td><code>sensorMs</code></td><td>Milliseconds since the sensor stream started. Not wall-clock.</td></tr>
+          <tr><td class="num">28</td><td class="num">2</td><td><code>uint16</code></td><td><code>emissivity</code></td><td>×1000, so <code>950</code> means 0.95</td></tr>
+          <tr><td class="num">30</td><td class="num">2</td><td><code>uint16</code></td><td><code>reserved</code></td><td>Send <code>0</code>, ignore on read</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Payload</h3>
+    <ul>
+      <li><code>columns × rows</code> values of <code>int16</code>, row-major, origin at the top-left pixel — the same orientation the client draws.</li>
+      <li>Each value is hundredths of a degree Celsius: <code>2143</code> is 21.43 °C. Resolution is 0.01 °C, finer than the sensor's own accuracy.</li>
+      <li><code>-32768</code> marks a pixel with no valid reading (see section 4).</li>
+    </ul>
+
+    <h3>Size</h3>
+    <p>
+      32 + 32 × 24 × 2 = <strong>1,568 bytes</strong> per frame. At 12 fps that is 18.8 KB/s, about
+      150 kbit/s — roughly a tenth of a single MJPEG stream of the same scene at 640 × 480.
+    </p>
+    <p>
+      With flag bit 0 set, the payload becomes one <code>float32</code> per pixel: 32 + 3,072 =
+      3,104 bytes. Use it for debugging or unusually wide ranges; hundredths cover every consumer
+      case.
+    </p>
+  </section>
+
+  <section id="units">
+    <h2>4 · Units, limits, missing readings</h2>
+    <ul>
+      <li>Every temperature on the wire is °C. Fahrenheit is a display option; it never reaches the socket.</li>
+      <li>Int16 hundredths span −327.67 °C to +327.67 °C, far wider than the sensor's −40 °C to +300 °C range.</li>
+      <li>A pixel that failed calibration, is masked as a bad pixel, or fell outside the sensor's valid range is sent as <code>-32768</code>. The client draws it as the bottom of the palette and excludes it from min, max and spot markers.</li>
+      <li><code>frameMinC</code> and <code>frameMaxC</code> must be computed from valid pixels only. They are informational: the client's auto-range uses them as a starting hint but smooths its own scale, so a missing or stale value degrades the display rather than breaking it.</li>
+      <li>Values are integers on the wire by design. Do not send JSON arrays of decimals: 768 numbers as text cost four to six times the binary payload and force a parse per frame.</li>
+    </ul>
+  </section>
+
+  <section id="exclusions">
+    <h2>5 · What the stream must not carry</h2>
+    <p>
+      The palette and the temperature range are view state, not measurements. They stay in the
+      browser, and the frame arrives as plain temperatures.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <caption>Excluded, and what breaks if it is included</caption>
+        <thead>
+          <tr><th>Do not send</th><th>Consequence</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>A colorized RGB image</td><td>The measurement is destroyed. Spot temperatures, min/max and re-analysis of a recording all become impossible.</td></tr>
+          <tr><td>The palette, or a "current palette" field</td><td>Changing palette needs a Pi round trip and every viewer shares one look. Two monitors in one room cannot differ.</td></tr>
+          <tr><td>A normalized 0–255 field</td><td>Range and palette are baked together. Manual range becomes impossible, and the normalization is lossy.</td></tr>
+          <tr><td>Upsampled pixels (any resolution above 32 × 24)</td><td>Bandwidth multiplies for detail that does not exist. The client already interpolates when it scales to the canvas.</td></tr>
+          <tr><td>Overlays, reticles, timestamps, labels</td><td>Presentation belongs to the client, which knows the palette, the unit and the layout.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="calibration">
+    <h2>6 · Calibration stays on the Pi</h2>
+    <p>Before a frame is encoded, the Pi is responsible for:</p>
+    <ul>
+      <li>Reading the sensor's EEPROM calibration constants and applying them to raw counts.</li>
+      <li>Masking known bad pixels and interpolating or flagging them.</li>
+      <li>Applying emissivity (reported in the header so the client can display it) and reflected temperature.</li>
+      <li>Producing °C directly. The client performs no physical modelling and no unit conversion on the wire format.</li>
+    </ul>
+    <p>
+      A viewer that receives trustworthy °C can do its own display work. A viewer that receives raw
+      counts would need a per-sensor constant table, which is exactly the coupling this contract
+      exists to prevent.
+    </p>
+  </section>
+
+  <section id="faults">
+    <h2>7 · Faults, drops, reconnects</h2>
+    <ul>
+      <li><strong>Sensor fault.</strong> Set flag bit 1 and still send a frame — the last good field, or a field of <code>-32768</code>. The client keeps rendering and marks the view as degraded. Do not stop sending; a silent socket is indistinguishable from a dead network.</li>
+      <li><strong>Dropped frames.</strong> A sequence gap is the only signal the client needs. It must not panic, replay, or buffer: the next frame is complete on its own.</li>
+      <li><strong>Reconnect.</strong> On reopen, the Pi starts a new sequence from whatever value it likes; the client only compares consecutive frames within one connection.</li>
+      <li><strong>Slow client.</strong> Drop, never queue. The client discards any frame older than the one it just drew.</li>
+      <li><strong>Idle socket.</strong> If no frame has arrived for two seconds, the client treats the view as stale and says so. A heartbeat on the control channel is optional but useful for distinguishing "no frames" from "dead socket".</li>
+    </ul>
+  </section>
+
+  <section id="control">
+    <h2>8 · Control channel</h2>
+    <p>
+      Text messages, JSON, small and infrequent. Optional for v1 — a Pi may ignore all of them and
+      still be conformant — but the client should degrade quietly when they go unanswered.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <caption>Control messages</caption>
+        <thead>
+          <tr><th>Direction</th><th>Message</th><th>Meaning</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Client → Pi</td><td><code>{"type":"settings","emissivity":0.95,"reflectedC":21.0}</code></td><td>Update the physical model. Acknowledge with a status message; the next frame reflects the change.</td></tr>
+          <tr><td>Client → Pi</td><td><code>{"type":"ping","id":7}</code></td><td>Liveness check</td></tr>
+          <tr><td>Pi → Client</td><td><code>{"type":"pong","id":7}</code></td><td>Reply to a ping</td></tr>
+          <tr><td>Pi → Client</td><td><code>{"type":"status","state":"fault","detail":"i2c timeout"}</code></td><td>Human-readable state for the view's status line</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      Palette, range, unit and overlay choices are deliberately absent: they never leave the browser.
+    </p>
+  </section>
+
+  <section id="recording">
+    <h2>9 · Recording and replay</h2>
+    <p>Two artifacts, two purposes. The client produces the first today; the second is the reason to keep the raw frames.</p>
+    <div class="table-wrap">
+      <table>
+        <caption>Recording outputs</caption>
+        <thead>
+          <tr><th>Artifact</th><th>Contents</th><th>Re-colorable</th><th>Approximate size</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>.webm</code> clip</td><td>The rendered canvas, encoded by the browser. A picture of what was on screen.</td><td>No</td><td>A few hundred KB per ten seconds</td></tr>
+          <tr><td><code>.tframe</code> log</td><td>The same 1,568-byte frames back to back, with no extra container. Replay is a loop feeding the decoder.</td><td>Yes — palette and range are re-chosen at playback</td><td>18.8 KB per second at 12 fps</td></tr>
+          <tr><td><code>.json</code> sidecar</td><td>Palette, range mode and limits, unit, emissivity, start time, frame count</td><td>—</td><td>Under 1 KB</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>
+      A clip answers "what did the screen look like". A frame log answers "what were the
+      temperatures" — the only form that survives a change of palette, a change of range, or a later
+      question about a pixel. If long-term review matters, write both and keep them side by side.
+    </p>
+  </section>
+
+  <section id="versioning">
+    <h2>10 · Versioning rules</h2>
+    <ul>
+      <li><code>version</code> changes only for changes a v1 parser cannot survive: a different payload type, a reordered header, a different pixel meaning.</li>
+      <li>Appending fields is a v1-compatible change only if <code>headerBytes</code> grows and the payload starts at that offset. A v1 parser must honour <code>headerBytes</code> rather than assume 32.</li>
+      <li>Unknown flag bits are ignored, not rejected.</li>
+      <li>Unknown control message types are ignored without a reply.</li>
+      <li>The client rejects a frame whose declared dimensions do not match the grid it renders, and reports the mismatch rather than drawing scrambled data.</li>
+    </ul>
+  </section>
+
+  <section id="reference">
+    <h2>11 · Reference encoder</h2>
+    <p>
+      A complete Pi-side encoder. The struct is 32 bytes with no padding because the format string
+      is little-endian and every field is naturally sized; nothing needs manual byte packing.
+    </p>
+<pre>import struct
+import numpy as np
+
+# version, flags, headerBytes, columns, rows, sequence,
+# ambientC, frameMinC, frameMaxC, sensorMs, emissivity, reserved
+HEADER = struct.Struct("&lt;BBHHHIfffIHH")          # 32 bytes
+
+def encode_frame(seq, sensor_ms, ambient_c, emissivity, temps_c):
+    px = np.clip(np.rint(np.asarray(temps_c) * 100), -32767, 32767).astype("&lt;i2")
+    header = HEADER.pack(
+        1,                                # version
+        0,                                # flags
+        HEADER.size,                      # headerBytes
+        px.shape[1], px.shape[0],         # columns, rows
+        seq &amp; 0xFFFFFFFF,                 # sequence
+        ambient_c,                        # ambientC
+        float(px.min()) / 100,            # frameMinC
+        float(px.max()) / 100,            # frameMaxC
+        sensor_ms &amp; 0xFFFFFFFF,           # sensorMs
+        round(emissivity * 1000),         # emissivity
+        0,                                # reserved
+    )
+    return header + px.tobytes()          # 1,568 bytes
+
+# one binary message per frame
+await websocket.send(encode_frame(seq, t_ms, 21.4, 0.95, temps_c))</pre>
+
+    <p>
+      The client mirrors this exactly: read the header, verify <code>version</code>,
+      <code>headerBytes</code> and dimensions, read <code>columns × rows</code> values from
+      <code>headerBytes</code> onward, divide by 100, and hand the resulting °C array to the renderer.
+      In <span class="term">index.html</span> that decoder sits between the frame source and the
+      palette pipeline, so a live socket and the built-in demo are interchangeable.
+    </p>
+  </section>
+
+  <section id="assumptions">
+    <h2>12 · Assumptions and open questions</h2>
+    <div class="note">
+      <p class="note__label">Assumptions behind v1</p>
+      <ul>
+        <li>Sensor is an MLX90640 at 32 × 24. A 55 × 35 sensor (MLX90641) fits the header unchanged but raises the frame to 3,882 bytes.</li>
+        <li>Deployment is a trusted local network; the Pi serves the page and the socket.</li>
+        <li>Default stream rate is 12 fps. The sensor's own 1–64 Hz refresh is an implementation detail.</li>
+        <li>One viewer per socket is acceptable at this scale; there is no shared-frame fan-out.</li>
+      </ul>
+    </div>
+    <p>Still open, and worth deciding before the Pi side is written:</p>
+    <ul>
+      <li>Whether the Pi should also expose an MJPEG or RTSP output for an NVR or a non-browser consumer. If so, it is a second output fed from the same sensor read — not a replacement for this contract.</li>
+      <li>Whether a frame log is recorded on the Pi as well as in the browser, for retention beyond the session.</li>
+      <li>How a client states its preferred frame rate, if at all. At 1,568 bytes per frame it is hard to make a bandwidth argument for throttling, but a battery-powered laptop may still want it.</li>
+    </ul>
+  </section>
+
+  <footer class="doc-foot">
+    Thermal Camera Stream Contract · version 1 · applies to index.html in this project
+  </footer>
+
+</article>
+</body>
+</html>

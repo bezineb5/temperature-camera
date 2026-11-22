@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=pi
 WorkingDirectory=/home/pi/TemperatureCamera
-ExecStart=/home/pi/TemperatureCamera/venv/bin/python /home/pi/TemperatureCamera/main.py --min-temp 23 --max-temp 40
+ExecStart=/home/pi/TemperatureCamera/venv/bin/python /home/pi/TemperatureCamera/main.py
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1

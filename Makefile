@@ -5,12 +5,9 @@ RPI_HOST ?= rpi42.local
 RPI_DIR ?= /home/$(RPI_USER)/TemperatureCamera
 
 deploy:
-	scp -r main.py templates/ requirements.txt TemperatureCamera.service $(RPI_USER)@$(RPI_HOST):$(RPI_DIR)/
+	scp -r main.py templates/ requirements.txt requirements-pi.txt TemperatureCamera.service $(RPI_USER)@$(RPI_HOST):$(RPI_DIR)/
 
 setup-venv:
-	ssh $(RPI_USER)@$(RPI_HOST) "cd $(RPI_DIR) && python3 -m venv venv && venv/bin/pip install -r requirements.txt"
+	ssh $(RPI_USER)@$(RPI_HOST) "cd $(RPI_DIR) && python3 -m venv venv && venv/bin/pip install -r requirements.txt -r requirements-pi.txt"
 
-rsync-videos:
-	rsync -avz --progress $(RPI_USER)@$(RPI_HOST):$(RPI_DIR)/recordings/ recordings/
-
-.PHONY: deploy setup-venv rsync-videos
+.PHONY: deploy setup-venv
