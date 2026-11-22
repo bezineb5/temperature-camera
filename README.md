@@ -93,11 +93,16 @@ sudo reboot
 
 ### 2. Python Dependencies
 
+For development mode (Options A/B), system-wide pip is fine:
+
 ```bash
-# Install Python packages (on the Pi, also install the sensor library)
 pip3 install -r requirements.txt
 pip3 install -r requirements-pi.txt   # Raspberry Pi only
 ```
+
+For the systemd service (Option C) the unit runs `venv/bin/python`, so the Pi
+needs a virtualenv at `TemperatureCamera/venv` — create it from your machine
+with `make setup-venv`, which also installs both requirements files into it.
 
 ### 3. Deployment Options
 
@@ -118,17 +123,20 @@ python3 main.py --demo
 
 #### Option C: Production Deployment (Recommended)
 
+The service expects a venv on the Pi, so the order matters:
+
 ```bash
-# Install as systemd service
-make service-install
+make setup-venv         # on the Pi: create venv + install requirements.txt and requirements-pi.txt
+make deploy             # push code from this machine
+make service-install    # install + enable the systemd unit on the Pi
+make service-start
 
 # Service management commands
-make service-start      # Start the service
 make service-stop       # Stop the service
 make service-restart    # Restart the service
 make service-status     # Check service status
-make service-logs       # View logs
-make service-update     # Deploy latest code and restart
+make service-logs       # View logs (journalctl)
+make service-update     # Deploy latest code, reinstall unit, restart
 ```
 
 ## Usage
