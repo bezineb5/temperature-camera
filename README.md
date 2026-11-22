@@ -59,7 +59,7 @@ snapshots and clips are all client-side. The wire format is specified in the
 ## Quick Start (no hardware needed)
 
 ```bash
-git clone https://github.com/<github-user>/temperature-camera.git
+git clone https://github.com/bezineb5/temperature-camera.git
 cd temperature-camera
 pip install -r requirements.txt
 python3 main.py --demo
