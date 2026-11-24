@@ -164,6 +164,42 @@ def test_apply_orientation():
     assert apply_orientation(temps, 3, 2, True, True) == [6, 5, 4, 3, 2, 1]
 
 
+# --- MLX90640Source retry behavior -------------------------------------------------
+
+
+class _FakeMLX:
+    def __init__(self, failures: int):
+        self.calls = 0
+        self.failures = failures
+
+    def getFrame(self, frame) -> None:
+        self.calls += 1
+        if self.calls <= self.failures:
+            raise ValueError("math domain error")
+        for i in range(len(frame)):
+            frame[i] = 21.0
+
+
+def _bare_mlx_source(fake) -> MLX90640Source:
+    src = MLX90640Source.__new__(MLX90640Source)  # skip hardware init
+    src._mlx = fake
+    return src
+
+
+def test_mlx_source_retries_transient_math_domain_error():
+    fake = _FakeMLX(failures=2)
+    temps = _bare_mlx_source(fake).read()
+    assert temps == [21.0] * (32 * 24)
+    assert fake.calls == 3
+
+
+def test_mlx_source_raises_after_retries_exhausted():
+    fake = _FakeMLX(failures=99)
+    with pytest.raises(ValueError, match="math domain error"):
+        _bare_mlx_source(fake).read()
+    assert fake.calls == 3
+
+
 # --- SensorSettings -------------------------------------------------------------
 
 

@@ -237,9 +237,25 @@ class MLX90640Source(FrameSource):
             logger.warning(f"Could not set emissivity on sensor: {e}")
 
     def read(self) -> list[float]:
+        """Read one frame, retrying transient failures.
+
+        getFrame can raise ValueError("math domain error") when a glitched
+        (e.g. I2C-corrupted) frame breaks its calibration math — usually a
+        one-off, so retry before giving up and letting the caller send a
+        fault frame.
+        """
         frame: list[float] = [0.0] * (self.cols * self.rows)
-        self._mlx.getFrame(frame)  # raises ValueError/RuntimeError on bad reads
-        return frame
+        last_exc: Exception | None = None
+        for attempt in range(3):
+            try:
+                self._mlx.getFrame(frame)
+                return frame
+            except (ValueError, RuntimeError) as e:
+                last_exc = e
+                logger.debug(f"MLX90640 read attempt {attempt + 1}/3 failed: {e}")
+                time.sleep(0.05)
+        assert last_exc is not None
+        raise last_exc
 
 
 source: FrameSource | None = None
