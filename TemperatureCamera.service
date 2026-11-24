@@ -25,10 +25,10 @@ PrivateTmp=true
 ProtectHome=read-only
 ProtectSystem=strict
 
-# Performance settings
+# Performance settings (MemoryLimit sized for a 512 MB Pi Zero W; the app uses ~100 MB)
 Nice=0
 CPUQuota=80%
-MemoryLimit=500M
+MemoryLimit=300M
 
 [Install]
 WantedBy=multi-user.target

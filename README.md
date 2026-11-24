@@ -47,8 +47,11 @@ snapshots and clips are all client-side. The wire format is specified in the
 
 ## Hardware Requirements
 
-- Any Raspberry Pi with I2C and a network connection — Pi Zero 2 W, 2, 3, 4 or 5
-  (the original Pi Zero also works headless; Wi-Fi needs a USB dongle)
+- Any Raspberry Pi with I2C and a network connection — Pi Zero W (single core,
+  fine for this light load; use `--fps 6` if CPU runs high), Zero 2 W, 2, 3, 4
+  or 5. The plain Zero (no W) needs a Wi-Fi USB dongle; the Zero W has Wi-Fi.
+  Note: the original Zero W is ARMv6, so `gpiod` may compile from source on
+  first `make setup-venv` — install `build-essential python3-dev libgpiod-dev`.
 - MLX90640 Thermal Camera Sensor
 
 ## Software Requirements
