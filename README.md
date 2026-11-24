@@ -43,6 +43,7 @@ snapshots and clips are all client-side. The wire format is specified in the
 - Browser-side snapshots (PNG) and session clips (WebM via MediaRecorder)
 - Stream contract page served at `/stream-contract.html`
 - Demo mode (`--demo`) streams a synthetic field without hardware
+- Standalone edition for Raspberry Pi Pico W in `pico/` (MicroPython, same contract)
 - Systemd service for production deployment
 
 ## Hardware Requirements
@@ -194,6 +195,7 @@ python3 main.py --demo     # run the server without a sensor
 - `templates/index.html`: Live view UI (canvas renderer, palettes, recording)
 - `templates/stream-contract.html`: v1 stream contract served by the app
 - `designs/`: Source design export the UI was built from
+- `pico/`: Standalone MicroPython edition for Raspberry Pi Pico W (no Pi needed)
 - `requirements.txt`: Python dependencies (any machine)
 - `requirements-pi.txt`: Sensor library (Raspberry Pi only)
 - `requirements-dev.txt`: Test runner (development machines)
