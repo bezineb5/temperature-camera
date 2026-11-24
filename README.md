@@ -87,10 +87,10 @@ sudo raspi-config
 # Navigate to: Interface Options -> I2C -> Enable
 
 # Raise the I2C baud rate: at the 100 kHz default, reading the 768-pixel frame
-# alone takes ~125 ms (≈1 fps). 400 kHz gives ~12 fps and is reliable with
-# decent wiring. 1 MHz is the MLX90640 maximum but marginal wiring fails there
-# with "Too many retries" — if that happens, come back to 400 kHz
-echo "dtparam=i2c_arm_baudrate=400000" | sudo tee -a /boot/firmware/config.txt
+# alone takes ~125 ms (≈1 fps). Both 400 kHz and 1 MHz are within the MLX90640
+# spec — which one is stable depends on your wiring, so pick the highest that
+# gives "fault": false in /api/status and no "Too many retries" in the logs
+echo "dtparam=i2c_arm_baudrate=1000000" | sudo tee -a /boot/firmware/config.txt
 
 # Reboot
 sudo reboot
@@ -212,10 +212,10 @@ sudo i2cdetect -y 1
 ```
 
 - Logs show `Sensor read failed ... Too many retries`: the Pi opens `/dev/i2c-1`
-  fine, but the sensor does not ACK — usually wiring/pull-ups, or the I2C baud
-  rate pushed too high. Remove `dtparam=i2c_arm_baudrate=...` from
+  fine, but the sensor does not ACK — wiring/pull-ups, or a baud rate your wiring
+  can't sustain. Try the *other* speed (400 kHz vs 1 MHz) in
   `/boot/firmware/config.txt` and reboot; check the sensor is powered at 3.3 V
-  (not 5 V).
+  (not 5 V). Verify stability with `curl localhost:5000/api/status` → `"fault": false`.
 - If `i2cdetect` shows nothing at all, check wiring and reboot.
 - Startup fails with `Failed to initialize MLX90640: The platform library 'gpiod'
   was not found`: Blinka needs gpiod even for I2C-only use. Install
